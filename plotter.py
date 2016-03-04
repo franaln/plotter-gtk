@@ -1,6 +1,8 @@
 #! /usr/bin/env python2.7
 
-import sys, signal
+import sys
+import signal
+
 from plotter.app import App
 
 if __name__ == '__main__':
