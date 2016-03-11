@@ -1,8 +1,5 @@
 import os
 import sys
-# import re
-# import time
-# from datetime import datetime
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -11,7 +8,10 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import Pango
 
-from plotter.db import Database
+#from plotter.db import Database
+from plotter.rootfile import RootFile
+from plotter.plot import Plot
+# import plotter.style
 
 import ROOT
 
@@ -33,8 +33,11 @@ class App:
         #     self.db_path = default_db_path
         #     self.settings.set_value('db_path', self.db_path)
 
-        # load db
-        self.db = Database(file_paths)
+        # load files
+        self.files = []
+        for path in file_paths:
+            self.files.append(RootFile(path))
+        #self.db = Database(file_paths)
 
         # models
         self.models = self.create_models()
@@ -71,18 +74,45 @@ class App:
         # plot box
         self.plot_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
+        self.plot_label = Gtk.Label('Plot')
+        self.plot_box.pack_start(self.plot_label, False, True, 10)
+
+
         self.plot_model = Gtk.ListStore(int,int, str)
         tv = Gtk.TreeView(self.plot_model)
+
         tr = Gtk.CellRendererText()
-        col = Gtk.TreeViewColumn("Plot", tr, text=2)
-        tv.append_column(col)
+        tr.props.wrap_width = 300
+
+        col1 = Gtk.TreeViewColumn("Objects", tr, text=2)
+        col1.set_min_width(150)
+        # col1.set_cell_data_func(tr, self.cell_data_fn_plot_name)
+
+        tr2 = Gtk.CellRendererText()
+        tr2.props.foreground = 'grey'
+        tr2.props.style =Pango.Style.ITALIC
+        tr2.props.scale = 0.8
+        col2 = Gtk.TreeViewColumn("Options", tr2)
+        col2.set_cell_data_func(tr2, self.cell_data_fn_plot_opts)
+
+        selection = tv.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+
+        tv.append_column(col1)
+        tv.append_column(col2)
 
         # buttons
-        self.button_up = Gtk.Button(image=Gtk.Image().new_from_icon_name('go-up', Gtk.IconSize.MENU))
+        self.button_up = Gtk.Button()
+        self.button_up.add(Gtk.Arrow(Gtk.ArrowType.UP, Gtk.ShadowType.NONE))
         self.button_up.connect('clicked', self.on_button_up)
 
-        self.button_down = Gtk.Button(image=Gtk.Image().new_from_icon_name('go-down', Gtk.IconSize.MENU))
+        self.button_down = Gtk.Button()
+        self.button_down.add(Gtk.Arrow(Gtk.ArrowType.DOWN, Gtk.ShadowType.NONE))
         self.button_down.connect('clicked', self.on_button_down)
+
+        button_stack = Gtk.Button('Stack')
+        button_logy = Gtk.Button('log y')
+
 
         self.button_clear = Gtk.Button('Clear')
         self.button_clear.connect('clicked', self.on_button_clear)
@@ -102,12 +132,14 @@ class App:
         plot_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         plot_buttons.pack_start(self.button_up, False, True, 0)
         plot_buttons.pack_start(self.button_down, False, True, 0)
+        plot_buttons.pack_start(button_stack, False, True, 5)
+        plot_buttons.pack_start(button_logy, False, True, 5)
 
-        self.plot_box.pack_start(plot_buttons, False, True, 0)
-        self.plot_box.pack_start(self.button_clear, False, True, 0)
-        self.plot_box.pack_start(self.button_draw, False, True, 0)
-        self.plot_box.pack_start(self.button_draw_ratio, False, True, 0)
-        self.plot_box.pack_start(self.button_draw_and_ratio, False, True, 0)
+        self.plot_box.pack_start(plot_buttons, False, True, 5)
+        self.plot_box.pack_start(self.button_clear, False, True, 2)
+        self.plot_box.pack_start(self.button_draw_ratio, False, True, 2)
+        self.plot_box.pack_start(self.button_draw_and_ratio, False, True, 2)
+        self.plot_box.pack_start(self.button_draw, False, True, 2)
 
         self.mainbox.pack_start(self.plot_box, True, True, 0)
 
@@ -157,7 +189,7 @@ class App:
 
         for ifile, model in enumerate(models):
 
-            for iitem, (depth, iname) in enumerate(self.db.files[ifile].loop()):
+            for iitem, (depth, iname) in enumerate(self.files[ifile]):
 
                 if depth == 0:
                     it = model.append(None, [ifile, iitem, iname])
@@ -165,18 +197,6 @@ class App:
                     model.append(it, [ifile, iitem, iname])
 
 
-
-        # it = treestore.append(None, ["Scripting languages"])
-        # treestore.append(it, ["Python"])
-        # treestore.append(it, ["PHP"])
-        # treestore.append(it, ["Perl"])
-        # treestore.append(it, ["Ruby"])
-
-        # it = treestore.append(None, ["Compiling languages"])
-        # treestore.append(it, ["C#"])
-        # treestore.append(it, ["C++"])
-        # treestore.append(it, ["C"])
-        # treestore.append(it, ["Java"])
 
         # self.show_idx = self.idx
         # self.model_filter.set_visible_func(self.visible_fn, self.show_idx)
@@ -209,7 +229,7 @@ class App:
             cell_name.props.wrap_mode = Pango.WrapMode.WORD
             cell_name.props.wrap_width = 200
 
-            column_note = Gtk.TreeViewColumn(self.db.files[i].name, cell_name, text=2)
+            column_note = Gtk.TreeViewColumn('(%i) %s' % (i, self.files[i].name[:25]), cell_name, text=2)
             column_note.set_min_width(100)
             column_note.set_expand(True)
 
@@ -258,13 +278,35 @@ class App:
         return box
 
 
+    def cell_data_fn_plot_name(self, column, cell, model, treeiter, data=None):
+        name = model.get_value(treeiter, 2)
+        #title = self.db.get_note_prop(idx, 'title')
+        #if self.db.get_note_prop(idx, 'content'):
+        #    title += '<i><span foreground=\'grey\'> ... </span></i>'
+        #if '!' in title:
+        title = '<b>' + name + '</b>'
+        cell.set_property('markup', title)
+
+    def cell_data_fn_plot_opts(self, column, cell, model, treeiter, data=None):
+        #name = model.get_value(treeiter, 2)
+        #title = self.db.get_note_prop(idx, 'title')
+        #if self.db.get_note_prop(idx, 'content'):
+        #    title += '<i><span foreground=\'grey\'> ... </span></i>'
+        #if '!' in title:
+        #title = '<b> red </b>'
+
+
+
+        cell.set_property('text', style.colors[len(self.plot_model)-1])
+
+
     def close(self, window=None, dummy=None):
 
         for plot in self.plots:
             del plot
 
         # close database
-        self.db.close()
+        # self.db.close()
 
         # save settings
         # self.settings.save()
@@ -322,7 +364,9 @@ class App:
         iitem = model.get_value(treeiter, 1)
         iname = model.get_value(treeiter, 2)
 
-        self.plot_model.append((ifile, iitem, iname))
+        new_name = '%i/%s' % (ifile, iname)
+
+        self.plot_model.append((ifile, iitem, new_name))
 
         return False
 
@@ -340,13 +384,16 @@ class App:
         pass
 
     def on_button_up(self, btn):
-        pass
+        self.plot_model.move_after()
 
     def on_button_down(self, btn):
         pass
 
 
     ## Draw
+    def get_object(self, ifile, iitem, iname):
+        return self.files[ifile].get_object(iname)
+
     def draw(self):
 
         """ Draw function. Creates a plot with the selected items and options """
@@ -354,33 +401,28 @@ class App:
         if not self.plot_model:
             return
 
-        print self.plot_model
+        plot = Plot()
 
-        canvas = ROOT.TCanvas()
+        # p.logx(self.check_logx.GetState())
+        # p.logy(self.check_logy.GetState())
 
-        for (ifile, iitem, iname) in self.plot_model:
+        for iobj, (ifile, iitem, iname) in enumerate(self.plot_model):
 
-            print ifile, iitem, iname
+            #     print ifile, iitem, iname
 
-            obj = self.db.get_object(ifile, iitem, iname)
-            print obj
-            obj.Draw('same')
+            obj = self.get_object(ifile, iitem, iname)
 
+            plot.add(obj, 'red')
 
-        self.plots.append(canvas)
-
-        # h.Draw()
-
-        # Plot order: 1) Selected order (default). 2) Order by file and entry.
-        # if(check_order.GetState())  sort(self._items.begin(), self._items.end())
-
-        #p = Plot()
-
-        # p.set_logx(self.check_logx.GetState())
-        # p.set_logy(self.check_logy.GetState())
+        #     if iobj == 0:
+        #         obj.Draw()
+        #     else:
+        #         obj.Draw('same')
 
 
-        # self.get_colours()
+        plot.create()
+
+        self.plots.append(plot)
 
         # for i, item in enumerate(self.items):
         #     if not item.is_plotable():
@@ -388,10 +430,6 @@ class App:
         #         continue
         #     p.add(self.get_object(item), self.colours[i])
 
-        # if self.check_include_ratio.GetState():
-        #     p.set_include_ratio(True)
-        # elif self.check_include_diff.GetState():
-        #     p.set_include_diff(True)
 
         # draw_opts = ''
         # if self.check_text.GetState():
@@ -409,9 +447,3 @@ class App:
         #     draw_opts += "box,"
         # else:
         #     draw_opts += "colz,"
-
-        # p.set_draw_options(draw_opts)
-
-        # p.create()
-
-        # self.plots.append(p)
