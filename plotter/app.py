@@ -11,7 +11,7 @@ from gi.repository import Pango
 #from plotter.db import Database
 from plotter.rootfile import RootFile
 from plotter.plot import Plot
-# import plotter.style
+from plotter.style import *
 
 import ROOT
 
@@ -75,17 +75,18 @@ class App:
         self.plot_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self.plot_label = Gtk.Label('Plot')
-        self.plot_box.pack_start(self.plot_label, False, True, 10)
+
+        self.plot_box.pack_start(self.plot_label, False, True, 8)
 
 
-        self.plot_model = Gtk.ListStore(int,int, str)
+        # plot model: (file, item, path)
+        self.plot_model = Gtk.ListStore(int, int, str)
         tv = Gtk.TreeView(self.plot_model)
 
         tr = Gtk.CellRendererText()
         tr.props.wrap_width = 300
-
         col1 = Gtk.TreeViewColumn("Objects", tr, text=2)
-        col1.set_min_width(150)
+        col1.set_min_width(200)
         # col1.set_cell_data_func(tr, self.cell_data_fn_plot_name)
 
         tr2 = Gtk.CellRendererText()
@@ -111,8 +112,9 @@ class App:
         self.button_down.connect('clicked', self.on_button_down)
 
         button_stack = Gtk.Button('Stack')
-        button_logy = Gtk.Button('log y')
 
+        button_logx = Gtk.CheckButton('logx')
+        button_logy = Gtk.CheckButton('logy')
 
         self.button_clear = Gtk.Button('Clear')
         self.button_clear.connect('clicked', self.on_button_clear)
@@ -133,9 +135,11 @@ class App:
         plot_buttons.pack_start(self.button_up, False, True, 0)
         plot_buttons.pack_start(self.button_down, False, True, 0)
         plot_buttons.pack_start(button_stack, False, True, 5)
-        plot_buttons.pack_start(button_logy, False, True, 5)
 
-        self.plot_box.pack_start(plot_buttons, False, True, 5)
+        plot_buttons.pack_end(button_logy, False, True, 2)
+        plot_buttons.pack_end(button_logx, False, True, 2)
+
+        self.plot_box.pack_start(plot_buttons, False, True, 2)
         self.plot_box.pack_start(self.button_clear, False, True, 2)
         self.plot_box.pack_start(self.button_draw_ratio, False, True, 2)
         self.plot_box.pack_start(self.button_draw_and_ratio, False, True, 2)
@@ -181,22 +185,23 @@ class App:
 
     def create_models(self):
 
-        # model
         models = []
         for i in xrange(self.nfiles):
-            models.append(Gtk.TreeStore(int, int, str))
+            models.append(Gtk.TreeStore(int, int, int, str, str))
 
 
+        # fill each model
+        # item: (file, item, depth, path, name)
         for ifile, model in enumerate(models):
 
-            for iitem, (depth, iname) in enumerate(self.files[ifile]):
+            self.files[ifile]
+
+            for i, (depth, path, name) in enumerate(self.files[ifile]):
 
                 if depth == 0:
-                    it = model.append(None, [ifile, iitem, iname])
+                    it = model.append(None, [ifile, i, depth, path, name])
                 else:
-                    model.append(it, [ifile, iitem, iname])
-
-
+                    model.append(it, [ifile, i, depth, path, name])
 
         # self.show_idx = self.idx
         # self.model_filter.set_visible_func(self.visible_fn, self.show_idx)
@@ -210,18 +215,11 @@ class App:
         views = []
         for i, model in enumerate(self.models):
 
-            view = Gtk.TreeView(model) #_filter)
-
-            # self.modelview.set_activate_on_single_click(True)
-            # self.modelview.set_headers_visible(False)
-            # self.modelview.set_enable_search(False)
-            # view.set_rubber_banding(True)
+            view = Gtk.TreeView(model)
 
             selection = view.get_selection()
             selection.set_mode(Gtk.SelectionMode.MULTIPLE)
-            # selection.selected_foreach_iter(selected_row_callback)
             selection.set_select_function(self.selected_row_callback, i)
-
 
             # Column title/tags
             cell_name = Gtk.CellRendererText()
@@ -229,25 +227,10 @@ class App:
             cell_name.props.wrap_mode = Pango.WrapMode.WORD
             cell_name.props.wrap_width = 200
 
-            column_note = Gtk.TreeViewColumn('(%i) %s' % (i, self.files[i].name[:25]), cell_name, text=2)
+            column_note = Gtk.TreeViewColumn('(%i) %s' % (i, self.files[i].name[:25]), cell_name, text=4)
             column_note.set_min_width(100)
             column_note.set_expand(True)
-
-            # column_note.set_cell_data_func(cell_title, self.cell_data_fn_title)
-            # column_note.set_cell_data_func(cell_tags, self.cell_data_fn_tags)
-
-            # column_note.pack_end(cell_tags, False)
-
-            # mtime column
-            # cell_utime = Gtk.CellRendererText()
-            # cell_utime.props.for var in collection:
-            #eground = 'grey'
-
-            # column_utime = Gtk.TreeViewColumn('Updated', cell_utime)
-            # column_utime.set_min_width(50)
-            # column_utime.set_cell_data_func(cell_utime, self.cell_data_fn_utime)
             view.append_column(column_note)
-            # self.modelview.append_column(column_utime)
 
             views.append(view)
 
@@ -288,25 +271,16 @@ class App:
         cell.set_property('markup', title)
 
     def cell_data_fn_plot_opts(self, column, cell, model, treeiter, data=None):
-        #name = model.get_value(treeiter, 2)
-        #title = self.db.get_note_prop(idx, 'title')
-        #if self.db.get_note_prop(idx, 'content'):
-        #    title += '<i><span foreground=\'grey\'> ... </span></i>'
-        #if '!' in title:
-        #title = '<b> red </b>'
 
+        item = model.get_value(treeiter, 1)
 
-
-        cell.set_property('text', style.colors[len(self.plot_model)-1])
+        cell.set_property('text', colours[item])
 
 
     def close(self, window=None, dummy=None):
 
         for plot in self.plots:
             del plot
-
-        # close database
-        # self.db.close()
 
         # save settings
         # self.settings.save()
@@ -360,15 +334,15 @@ class App:
     def selected_row_callback(self, treesel, model, path, nose, ifile):
 
         treeiter = model.get_iter(path)
+
         ifile = model.get_value(treeiter, 0)
-        iitem = model.get_value(treeiter, 1)
-        iname = model.get_value(treeiter, 2)
+        path  = model.get_value(treeiter, 3)
+        item = len(self.plot_model)
 
-        new_name = '%i/%s' % (ifile, iname)
-
-        self.plot_model.append((ifile, iitem, new_name))
+        self.plot_model.append((ifile, item, path))
 
         return False
+
 
     ## Buttons cb
     def on_button_clear(self, btn):
@@ -391,9 +365,6 @@ class App:
 
 
     ## Draw
-    def get_object(self, ifile, iitem, iname):
-        return self.files[ifile].get_object(iname)
-
     def draw(self):
 
         """ Draw function. Creates a plot with the selected items and options """
@@ -403,47 +374,17 @@ class App:
 
         plot = Plot()
 
-        # p.logx(self.check_logx.GetState())
-        # p.logy(self.check_logy.GetState())
 
-        for iobj, (ifile, iitem, iname) in enumerate(self.plot_model):
+        for (ifile, item, path) in self.plot_model:
 
-            #     print ifile, iitem, iname
-
-            obj = self.get_object(ifile, iitem, iname)
+            obj = self.files[ifile].get_object(path)
 
             plot.add(obj, 'red')
 
-        #     if iobj == 0:
-        #         obj.Draw()
-        #     else:
-        #         obj.Draw('same')
 
 
         plot.create()
 
         self.plots.append(plot)
 
-        # for i, item in enumerate(self.items):
-        #     if not item.is_plotable():
-        #         msg_error("")
-        #         continue
-        #     p.add(self.get_object(item), self.colours[i])
-
-
-        # draw_opts = ''
-        # if self.check_text.GetState():
-        #     draw_opts += "text,"
-        # if self.check_hist.GetState():
-        #     draw_opts += "hist,"
-        # if self.check_p.GetState():
-        #     draw_opts += "P,"
-        # if self.check_pie.GetState():
-        #     draw_opts += "PIE,"
-
-        # if self.radio_scatter.GetState():
-        #     draw_opts += "scat,"
-        # elif self.radio_box.GetState():
-        #     draw_opts += "box,"
-        # else:
-        #     draw_opts += "colz,"
+        self.clear_plot()

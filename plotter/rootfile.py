@@ -33,12 +33,10 @@ class RootFile:
     def __del__(self):
         self._file.Close()
 
-
-    # loop over objects
     def __iter__(self):
         depth = 0
-        for depth, name in self.browse_dir(depth, ''):
-            yield (depth, name)
+        for depth, path, name in self.browse_dir(depth, ''):
+            yield (depth, path, name)
 
     def browse_tree(self, depth, name):
         tree = ROOT.TTree(name, '')
@@ -52,68 +50,76 @@ class RootFile:
                 continue
             yield (depth+1, branch.GetName())
 
-    def browse_dir(self, depth, name):
+    def browse_dir(self, depth, parent_name):
 
-        cdir = self._file.GetDirectory(name)
+        cdir = self._file.GetDirectory(parent_name)
 
         for key in cdir.GetListOfKeys():
             obj = key.ReadObj()
             name = obj.GetName()
 
-            if not name:
-                name = title
+            if parent_name:
+                path = parent_name + '/' + name
+            else:
+                path = name
 
             if obj.IsFolder():
                 if obj.InheritsFrom('TTree'):
 
-                    yield (depth, name)
+                    yield (depth, path, name)
 
                     for idepth, branch in self.browse_tree(depth, name):
-                        yield (idepth, branch)
+                        path = name + ':' + branch
+                        yield (idepth, path, branch)
 
                 else:
-                    yield (depth, name)
+                    yield (depth, path, name)
 
-                    for idepth, iname in self.browse_dir(depth, name):
-                        yield (idepth, iname)
+                    for ddepth, dpath, dname in self.browse_dir(depth, name):
+                        yield (ddepth, dpath, dname)
 
             elif obj.InheritsFrom('TH1') or obj.InheritsFrom('TGraph'):
-                yield (depth, name)
+                yield (depth, path, name)
 
             else:
-                yield (depth, name)
+                yield (depth, path, name)
 
 
 
-    def get_object(self, iname):
+    def get_object(self, path):
 
-        # name = self.items[iitem]
+        # tree
+        if ':' in path:
 
-        # histogram/graph
-        if iname in self.items:
-            obj = self._file.Get(iname)
-            print obj
+            treename, name = path.split(':')
 
-        # branch
-        else:
+            hname = "h_" + name
 
-            hname = "h_" + iname
+            tree = ROOT.TTree(treename, '')
+            self._file.GetObject(treename, tree)
 
-            tree = ROOT.TTree('mini', '')
-            self._file.GetObject('mini', tree)
+            tree.Draw(name+'>>'+hname, '', 'goff')
 
+            #htmp = ROOT.TH1F(hname, hname, 100, 0, 100)
+            #tree.Project(hname, name, '')
 
-            #tree.Draw(iname+'>>'+hname, '', 'goff')
-
-            htmp = ROOT.TH1F(hname, hname, 100, 0, 100)
-
-            tree.Project(hname, iname, '')
-            # hist = htemp.Clone()
-
-            # print iname, ROOT.gDirectory
+            htmp = ROOT.gDirectory.Get(hname)
 
             obj = htmp.Clone()
-            print 'asd'
+
+
+
+
+        elif '/' in path:
+            dirname, name = path.split('/')
+
+
+
+        else:
+            # histogram/graph
+            obj = self._file.Get(path)
+
+
 
         ROOT.SetOwnership(obj, False)
         try:
