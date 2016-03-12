@@ -344,7 +344,7 @@ class Plot:
         legpos = conf.legpos
 
 
-        self.canvas = ROOT.TCanvas(self.name, self.name, 800, 600)
+        self.canvas = ROOT.TCanvas(self.name, self.name, 600, 600)
         ROOT.SetOwnership(self.canvas, False)
 
         self.canvas.cd()
@@ -377,6 +377,11 @@ class Plot:
                 cup.SetLogy()
 
         else:
+            self.canvas.SetTicks()
+
+            self.canvas.SetRightMargin(0.05)
+            self.canvas.SetTopMargin(0.05)
+
             if self.logy:
                 self.canvas.SetLogy()
 
@@ -455,14 +460,8 @@ class Plot:
         # Titles and labels
         if xtitle:
             chist.GetXaxis().SetTitle(xtitle)
-            chist.GetXaxis().SetTitleOffset(1.40)
+            chist.GetXaxis().SetTitleOffset(1.20)
             chist.GetXaxis().SetLabelSize(0.)
-
-        # chist.GetXaxis().SetLabelSize(up_size*1.17)
-        # chist.GetXaxis().SetTitleSize(up_size*1.17)
-
-        # chist.GetYaxis().SetLabelSize(up_size*1.17)
-        # chist.GetYaxis().SetTitleSize(up_size*1.17)
 
         if 'BIN' in ytitle:
             width = chist.GetBinWidth(1)
@@ -473,7 +472,7 @@ class Plot:
                 ytitle = ytitle.replace('BIN', '{:.2f}'.format(width))
 
         chist.GetYaxis().SetTitle(ytitle)
-        chist.GetYaxis().SetTitleOffset(1.1)
+        chist.GetYaxis().SetTitleOffset(1.2)
 
         # if data:
         # data_graph = make_poisson_cl_errors(data)

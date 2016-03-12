@@ -196,7 +196,6 @@ class App:
 
             for i, (depth, path, name) in enumerate(self.files[ifile]):
 
-                print ifile, i, depth, path, name
                 if depth == 0:
                     it = model.append(None, [ifile, i, depth, path, name])
                 else:
@@ -380,7 +379,7 @@ class App:
 
         """ Draw function. Creates a plot with the selected items and options """
 
-        if not self.plot_model:
+        if not self.plot_model or len(self.plot_model) < 1:
             return
 
         plot = Plot()

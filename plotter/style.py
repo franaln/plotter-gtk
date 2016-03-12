@@ -57,12 +57,16 @@ def set_color(obj, color, fill=False, alpha=None):
 def set_style(obj, color='kBlack'):
 
     # check if hist or graph
-    is_hist = obj.InheritsFrom('TH1')
+    is_hist  = obj.InheritsFrom('TH1')
+    is_graph = obj.InheritsFrom('TGraph')
 
     # default
     obj.SetTitle('')
     if is_hist:
         obj.SetStats(0)
+        obj.SetLineWidth(2)
+
+
 
     # color
     set_color(obj, color) #, fill, alpha)
