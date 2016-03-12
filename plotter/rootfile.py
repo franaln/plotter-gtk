@@ -8,27 +8,7 @@ class RootFile:
     def __init__(self, path):
         self.path = path
         self.name = path.replace(".root", "").split('/')[-1]
-
         self._file = ROOT.TFile.Open(path)
-
-        # browse file
-        #for depth, name in self:
-
-        # filename = filename.replace(".root", "").split('/')[-1]
-
-        self.items = [ key.GetName() for key in self._file.GetListOfKeys() ] # tmp
-
-        # self.current_path = ''
-        # self.entry = 0
-        # self.parent = ParentItem(0, '', '', 'Dir')
-        # self.browse_dir(self.parent)
-
-        # self.title = title
-        # self.content = content
-        # self.ctime = ctime
-        # self.utime = utime
-        # self.uuid = uuid
-        # self.tags = set(tags)
 
     def __del__(self):
         self._file.Close()
@@ -37,18 +17,6 @@ class RootFile:
         depth = 0
         for depth, path, name in self.browse_dir(depth, ''):
             yield (depth, path, name)
-
-    def browse_tree(self, depth, name):
-        tree = ROOT.TTree(name, '')
-        self._file.GetObject(name, tree)
-
-        lb = tree.GetListOfBranches()
-        nbranches = lb.GetSize()
-        for k in xrange(nbranches):
-            branch = lb.At(k)
-            if not branch:
-                continue
-            yield (depth+1, branch.GetName())
 
     def browse_dir(self, depth, parent_name):
 
@@ -68,9 +36,10 @@ class RootFile:
 
                     yield (depth, path, name)
 
-                    for idepth, branch in self.browse_tree(depth, name):
-                        path = name + ':' + branch
-                        yield (idepth, path, branch)
+                    tree = self._file.Get(name)
+                    for b in tree.GetListOfLeaves():
+                        bname = b.GetName()
+                        yield (depth+1, name + ':' + bname, bname)
 
                 else:
                     yield (depth, path, name)
@@ -82,7 +51,7 @@ class RootFile:
                 yield (depth, path, name)
 
             else:
-                yield (depth, path, name)
+                continue #yield (depth, path, name)
 
 
 
@@ -108,12 +77,10 @@ class RootFile:
             obj = htmp.Clone()
 
 
-
-
         elif '/' in path:
             dirname, name = path.split('/')
 
-
+            obj = None
 
         else:
             # histogram/graph

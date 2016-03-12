@@ -3,6 +3,8 @@
 
 import ROOT
 
+from plotter.style import *
+
 # colours for the dict
 colors = [
     '#E24A33',
@@ -41,20 +43,19 @@ plots_conf['met_et']          = PlotConf('E_{T}^{miss} [GeV]', 'Events / (BIN Ge
 plots_conf['met_phi']         = PlotConf('#phi^{miss}', 'Events', 'right')
 plots_conf['ht']              = PlotConf('H_{T} [GeV]', 'Events / (BIN GeV)', 'right')
 plots_conf['jet_pt']          = PlotConf('Jet p_{T} [GeV]', 'Events / (BIN GeV)', 'right')
-plots_conf['jet_pt[0]']       = PlotConf('Jet1 p_{T} [GeV]', 'Events / (BIN GeV)', 'right')
-plots_conf['jet_pt[1]']       = PlotConf('Jet2 p_{T} [GeV]', 'Events / (BIN GeV)', 'right')
 plots_conf['jet_eta']         = PlotConf('Jet #eta', 'Events', 'right')
 plots_conf['rt2']             = PlotConf('R_{T}^{2}', 'Events', 'left', 0.3, 1.1)
 plots_conf['rt4']             = PlotConf('R_{T}^{4}', 'Events / BIN', 'left', 0.3, 1.05)
-plots_conf['dphi_jetmet']     = PlotConf('#Delta#phi(jet^{1,2}, E_{T}^{miss})', 'Events', 'right')
-plots_conf['dphi_jetmet_alt'] = PlotConf('#Delta#phi(jet^{1..4}, E_{T}^{miss})', 'Events', 'right')
-plots_conf['dphi_jet1met']    = PlotConf('#Delta#phi(j^{1}, E_{T}^{miss})', 'Events', 'right')
-plots_conf['dphi_jet2met']    = PlotConf('#Delta#phi(j^{2}, E_{T}^{miss})', 'Events', 'right')
-plots_conf['dphi_jet3met']    = PlotConf('#Delta#phi(j^{3}, E_{T}^{miss})', 'Events', 'right')
-plots_conf['dphi_gamjet']     = PlotConf('#Delta#phi(#gamma, jet)', 'Events', 'right')
-plots_conf['dphi_gammet']     = PlotConf('#Delta#phi(#gamma, E_{T}^{miss})', 'Events', 'right')
+
+plots_conf['pt']  = PlotConf('p_{T} [GeV]', 'Events / (BIN GeV)', 'right')
+plots_conf['eta'] = PlotConf('#eta', 'Events / (BIN GeV)', 'right')
+plots_conf['phi'] = PlotConf('#phi', 'Events / (BIN GeV)', 'right')
+
 
 plots_conf['default'] = PlotConf('','', 'right')
+
+
+
 
 
 def draw_significance(canvas, h_obs, h_exp):
@@ -258,26 +259,34 @@ class Plot:
 
         self.objects = []
         self.labels = []
+        self.drawopts = []
 
         self.logx = False
         self.logy = False
 
         Plot.number_of_plot = Plot.number_of_plot + 1
 
-    # @classmethod
-    # def get_number_of_plots(cls):
-    #     return cls.number_of_plot
+    @classmethod
+    def get_number_of_plots(cls):
+        return cls.number_of_plot
 
     def __del__(self):
         del self.canvas
         del self.legend
 
-    def add(self, obj, colour, opts='', label=''):
-        # set_style(obj, colour)
+    def add(self, obj, opts='', label=''):
 
-        # obj.SetOption(drawopts)
+        if ',' in opts:
+            colour, drawopts = opts.split(',')
+        else:
+            colour, drawopts = opts, ''
+
+        # set_style(obj, colour)
+        set_style(obj, colour)
 
         self.objects.append(obj.Clone(obj.GetName()))
+
+        self.drawopts.append(drawopts)
 
         if not label:
             label = obj.GetName()
@@ -303,18 +312,30 @@ class Plot:
     def create(self):
 
         do_ratio = False
-        logy = False
 
         # try to guess variable
         names = [ obj.GetName() for obj in self.objects ]
 
         variable = names[0]
 
+        if variable.startswith('h_'):
+            variable = variable[2:]
+
         if variable not in plots_conf:
             vartmp = variable[:variable.find('[')]
-            conf = plots_conf.get(vartmp, plots_conf['default'])
+            conf = plots_conf.get(vartmp, None)
         else:
-            conf = plots_conf.get(variable, plots_conf['default'])
+            conf = plots_conf.get(variable, None)
+
+        if conf is None:
+            last = variable.split('_')[-1]
+
+            if last in plots_conf:
+                conf = plots_conf.get(last, None)
+
+        if conf is None:
+            conf = plots_conf['default']
+
 
         xtitle = conf.xtitle
         ytitle = conf.ytitle
@@ -323,7 +344,7 @@ class Plot:
         legpos = conf.legpos
 
 
-        self.canvas = ROOT.TCanvas(self.name, self.name, 600, 600)
+        self.canvas = ROOT.TCanvas(self.name, self.name, 800, 600)
         ROOT.SetOwnership(self.canvas, False)
 
         self.canvas.cd()
@@ -352,12 +373,12 @@ class Plot:
             cdown.Draw()
 
 
-            if logy:
+            if self.logy:
                 cup.SetLogy()
 
         else:
-            if logy:
-                can.SetLogy()
+            if self.logy:
+                self.canvas.SetLogy()
 
 
         # configure histograms
@@ -400,11 +421,10 @@ class Plot:
                 legxmin = 0.65
                 legxmax = 0.92
 
-        legend1 = ROOT.TLegend(legxmin, legymin, legxmax, legymax)
-        legend2 = ROOT.TLegend(legxmin, legymin-.15, legxmax-0.035, legymin -.01)
+        self.legend = ROOT.TLegend(legxmin, legymin, legxmax, legymax)
 
-        for obj in self.objects:
-            legend1.AddEntry(obj, obj.GetName(), 'f')
+        for obj, label in zip(self.objects, self.labels):
+            self.legend.AddEntry(obj, label)
 
 
         if do_ratio:
@@ -429,13 +449,14 @@ class Plot:
 
         chist.SetMinimum(0.01)
 
-        if logy:
+        if self.logy:
             chist.SetMaximum(chist.GetMaximum()*1000)
 
         # Titles and labels
-        chist.GetXaxis().SetTitle(xtitle)
-        chist.GetXaxis().SetTitleOffset(1.40)
-        chist.GetXaxis().SetLabelSize(0.)
+        if xtitle:
+            chist.GetXaxis().SetTitle(xtitle)
+            chist.GetXaxis().SetTitleOffset(1.40)
+            chist.GetXaxis().SetLabelSize(0.)
 
         # chist.GetXaxis().SetLabelSize(up_size*1.17)
         # chist.GetXaxis().SetTitleSize(up_size*1.17)
@@ -463,18 +484,82 @@ class Plot:
         #data.Draw("P same")
 
 
-        chist.Draw()
+        chist.Draw(self.drawopts[0])
 
-        for obj in self.objects[1:]:
-            obj.Draw('same')
+        for obj, drawopts in zip(self.objects[1:], self.drawopts[1:]):
+            obj.Draw(drawopts+'same')
 
         if do_ratio:
             cup.RedrawAxis()
         else:
             self.canvas.RedrawAxis()
 
-        legend1.Draw()
-        legend2.Draw()
+        self.legend.Draw()
 
 
-        pass
+    # def draw_legend():
+
+    #     if self.labels == 1:
+    #         return
+
+    #     # Legend config
+    #     hsv = self.get_number_of_objects_in_each_file()
+
+    #     mtitle = False
+    #     mfile = False
+    #     mtitlefile = False
+    #     if hsv[0] == 1 and hsv[1] == 1: # 1 solo histo de >1 files
+    #        mfile = True
+
+    #     elif hsv[0] and not hsv[1]: # >1 histo de 1 solo file
+    #         mtitle = True
+    #     elif hsv[0] and hsv[1]: # >1 histo de >1 file
+    #         mtitlefile = True
+
+    #     legtemp = [];
+    #     for k in xrange(self.labels):
+
+    #         tmp = ""
+    #         if mfile:
+    #             tmp = fb[items_sel[k]->get_file()]->get_header_text();
+#   //     }
+#   //     else if(mtitle){
+#   //       items_sel[k]->get_legend_text();
+#   //     }
+#   //     else if(mtitlefile){
+#   //       tmp = " (" + fb[items_sel[k]->get_file()]->get_header_text() + ")";
+#   //       tmp=items_sel[k]->get_legend_text()+tmp;
+#   //     }
+#   //     legend.push_back(tmp);
+#   //     legtemp.push_back(tmp);
+#   // }
+
+#   // if(type==Plot::Ratio){
+#   //   for(unsigned int i=1;i<legend.size();i++){
+#   //     legend[i] += "/";
+#   //     legend[i] += legend[0];
+#   //   }
+#   // }
+
+#   // // legend size
+#   // sort(legtemp.begin(), legtemp.end());
+#   // reverse(legtemp.begin(),legtemp.end());
+
+#   // Double_t maxwidth = legtemp[0].Sizeof() * 0.01;
+#   // Double_t maxheight = items_sel.size() * 0.035;
+
+#   // Double_t xmin, xmax, ymin, ymax;
+
+#   // xmax = 0.86; ymax = 0.86;
+#   // ymin = (ymax - maxheight)>0.2 ? ymax - maxheight : 0.2;
+#   // xmin = (xmax - maxwidth)>0.2  ? xmax - maxwidth  : 0.2;
+
+#   // // Create and plot legend
+#   // TLegend *leg = new TLegend(xmin, ymin, xmax, ymax);
+#   // leg->SetFillColor(0);
+#   // unsigned int begin = type!=Plot::Normal ? 1 : 0;
+#   // for(unsigned int k=begin; k<items_sel.size(); k++){
+#   //   leg->AddEntry(plot_list->At(k), legend[k]);
+#   // }
+#   // leg->Draw();
+#   //}

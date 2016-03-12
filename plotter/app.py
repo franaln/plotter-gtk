@@ -79,8 +79,8 @@ class App:
         self.plot_box.pack_start(self.plot_label, False, True, 8)
 
 
-        # plot model: (file, item, path)
-        self.plot_model = Gtk.ListStore(int, int, str)
+        # plot model: (file, item, path, opts)
+        self.plot_model = Gtk.ListStore(int, int, str, str)
         tv = Gtk.TreeView(self.plot_model)
 
         tr = Gtk.CellRendererText()
@@ -93,8 +93,8 @@ class App:
         tr2.props.foreground = 'grey'
         tr2.props.style =Pango.Style.ITALIC
         tr2.props.scale = 0.8
-        col2 = Gtk.TreeViewColumn("Options", tr2)
-        col2.set_cell_data_func(tr2, self.cell_data_fn_plot_opts)
+        col2 = Gtk.TreeViewColumn("Options", tr2, text=3)
+        #col2.set_cell_data_func(tr2, self.cell_data_fn_plot_opts)
 
         selection = tv.get_selection()
         selection.set_mode(Gtk.SelectionMode.MULTIPLE)
@@ -111,10 +111,10 @@ class App:
         self.button_down.add(Gtk.Arrow(Gtk.ArrowType.DOWN, Gtk.ShadowType.NONE))
         self.button_down.connect('clicked', self.on_button_down)
 
-        button_stack = Gtk.Button('Stack')
+        self.button_stack = Gtk.Button('Stack')
 
-        button_logx = Gtk.CheckButton('logx')
-        button_logy = Gtk.CheckButton('logy')
+        self.button_logx = Gtk.CheckButton('logx')
+        self.button_logy = Gtk.CheckButton('logy')
 
         self.button_clear = Gtk.Button('Clear')
         self.button_clear.connect('clicked', self.on_button_clear)
@@ -134,15 +134,15 @@ class App:
         plot_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         plot_buttons.pack_start(self.button_up, False, True, 0)
         plot_buttons.pack_start(self.button_down, False, True, 0)
-        plot_buttons.pack_start(button_stack, False, True, 5)
+        # plot_buttons.pack_start(self.button_stack, False, True, 5)
 
-        plot_buttons.pack_end(button_logy, False, True, 2)
-        plot_buttons.pack_end(button_logx, False, True, 2)
+        plot_buttons.pack_end(self.button_logy, False, True, 2)
+        plot_buttons.pack_end(self.button_logx, False, True, 2)
 
         self.plot_box.pack_start(plot_buttons, False, True, 2)
         self.plot_box.pack_start(self.button_clear, False, True, 2)
-        self.plot_box.pack_start(self.button_draw_ratio, False, True, 2)
-        self.plot_box.pack_start(self.button_draw_and_ratio, False, True, 2)
+        # self.plot_box.pack_start(self.button_draw_ratio, False, True, 2)
+        # self.plot_box.pack_start(self.button_draw_and_ratio, False, True, 2)
         self.plot_box.pack_start(self.button_draw, False, True, 2)
 
         self.mainbox.pack_start(self.plot_box, True, True, 0)
@@ -194,10 +194,9 @@ class App:
         # item: (file, item, depth, path, name)
         for ifile, model in enumerate(models):
 
-            self.files[ifile]
-
             for i, (depth, path, name) in enumerate(self.files[ifile]):
 
+                print ifile, i, depth, path, name
                 if depth == 0:
                     it = model.append(None, [ifile, i, depth, path, name])
                 else:
@@ -261,20 +260,20 @@ class App:
         return box
 
 
-    def cell_data_fn_plot_name(self, column, cell, model, treeiter, data=None):
-        name = model.get_value(treeiter, 2)
-        #title = self.db.get_note_prop(idx, 'title')
-        #if self.db.get_note_prop(idx, 'content'):
-        #    title += '<i><span foreground=\'grey\'> ... </span></i>'
-        #if '!' in title:
-        title = '<b>' + name + '</b>'
-        cell.set_property('markup', title)
+    # def cell_data_fn_plot_name(self, column, cell, model, treeiter, data=None):
+    #     name = model.get_value(treeiter, 2)
+    #     #title = self.db.get_note_prop(idx, 'title')
+    #     #if self.db.get_note_prop(idx, 'content'):
+    #     #    title += '<i><span foreground=\'grey\'> ... </span></i>'
+    #     #if '!' in title:
+    #     title = '<b>' + name + '</b>'
+    #     cell.set_property('markup', title)
 
-    def cell_data_fn_plot_opts(self, column, cell, model, treeiter, data=None):
+    # def cell_data_fn_plot_opts(self, column, cell, model, treeiter, data=None):
 
-        item = model.get_value(treeiter, 1)
+    #     item = model.get_value(treeiter, 1)
 
-        cell.set_property('text', colours[item])
+    #     cell.set_property('text', default_colours[item])
 
 
     def close(self, window=None, dummy=None):
@@ -316,13 +315,18 @@ class App:
             #     self.find_button.set_active(True)
             #     self.entry.grab_focus()
 
-            ## ctrl-n: new note
+            ## ctrl-d: draw
             elif key == 'd':
                 self.draw()
 
             ## ctrl-c: clear selection
             elif key == 'c':
                 self.clear_plot()
+
+            ## ctrl-s: save plots
+            elif key == 's':
+                for plot in self.plots:
+                    plot.save()
 
             ## ctrl-x: be sure to do nothing!
             elif key == 'x':
@@ -335,11 +339,18 @@ class App:
 
         treeiter = model.get_iter(path)
 
+        if model.iter_next(treeiter) is not None and model.is_ancestor(treeiter, model.iter_next(treeiter)):
+            return False
+
         ifile = model.get_value(treeiter, 0)
         path  = model.get_value(treeiter, 3)
         item = len(self.plot_model)
+        opts = default_colours[item]
 
-        self.plot_model.append((ifile, item, path))
+        if (ifile, item, path, opts) in self.plot_model:
+            return False
+
+        self.plot_model.append((ifile, item, path, opts))
 
         return False
 
@@ -375,13 +386,16 @@ class App:
         plot = Plot()
 
 
-        for (ifile, item, path) in self.plot_model:
+        for (ifile, item, path, opts) in self.plot_model:
 
             obj = self.files[ifile].get_object(path)
 
-            plot.add(obj, 'red')
+            plot.add(obj, opts)
 
 
+
+        plot.logx = self.button_logx.get_active()
+        plot.logy = self.button_logy.get_active()
 
         plot.create()
 
