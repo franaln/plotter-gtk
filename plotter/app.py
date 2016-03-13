@@ -8,12 +8,11 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import Pango
 
-#from plotter.db import Database
 from plotter.rootfile import RootFile
 from plotter.plot import Plot
-from plotter.style import *
 
 import ROOT
+
 
 NAME    = 'plotter'
 VERSION = '0.1dev'
@@ -25,19 +24,10 @@ class App:
 
         self.nfiles = len(file_paths)
 
-        # self.settings = Settings(conf_path)
-
-        # if self.settings.get_value('db_path'):
-        #     self.db_path = self.settings.get_value('db_path')
-        # else:
-        #     self.db_path = default_db_path
-        #     self.settings.set_value('db_path', self.db_path)
-
-        # load files
+        # files
         self.files = []
         for path in file_paths:
             self.files.append(RootFile(path))
-        #self.db = Database(file_paths)
 
         # models
         self.models = self.create_models()
@@ -46,6 +36,7 @@ class App:
         # create main window
         self.create_window()
 
+        # plots
         self.plots = []
 
 
@@ -75,32 +66,28 @@ class App:
         self.plot_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self.plot_label = Gtk.Label('Plot')
-
         self.plot_box.pack_start(self.plot_label, False, True, 8)
-
 
         # plot model: (file, item, path, opts)
         self.plot_model = Gtk.ListStore(int, int, str, str)
-        tv = Gtk.TreeView(self.plot_model)
+        self.plot_view = Gtk.TreeView(self.plot_model)
 
         tr = Gtk.CellRendererText()
         tr.props.wrap_width = 300
         col1 = Gtk.TreeViewColumn("Objects", tr, text=2)
         col1.set_min_width(200)
-        # col1.set_cell_data_func(tr, self.cell_data_fn_plot_name)
 
         tr2 = Gtk.CellRendererText()
         tr2.props.foreground = 'grey'
         tr2.props.style =Pango.Style.ITALIC
         tr2.props.scale = 0.8
         col2 = Gtk.TreeViewColumn("Options", tr2, text=3)
-        #col2.set_cell_data_func(tr2, self.cell_data_fn_plot_opts)
 
-        selection = tv.get_selection()
+        selection = self.plot_view.get_selection()
         selection.set_mode(Gtk.SelectionMode.MULTIPLE)
 
-        tv.append_column(col1)
-        tv.append_column(col2)
+        self.plot_view.append_column(col1)
+        self.plot_view.append_column(col2)
 
         # buttons
         self.button_up = Gtk.Button()
@@ -129,13 +116,12 @@ class App:
         self.button_draw_and_ratio.connect('clicked', self.on_button_draw_and_ratio)
 
 
-        self.plot_box.pack_start(tv, True, True, 0)
+        self.plot_box.pack_start(self.plot_view, True, True, 0)
 
         plot_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         plot_buttons.pack_start(self.button_up, False, True, 0)
         plot_buttons.pack_start(self.button_down, False, True, 0)
         # plot_buttons.pack_start(self.button_stack, False, True, 5)
-
         plot_buttons.pack_end(self.button_logy, False, True, 2)
         plot_buttons.pack_end(self.button_logx, False, True, 2)
 
@@ -163,8 +149,8 @@ class App:
         self.title.get_style_context().add_class('title')
         header.set_custom_title(self.title)
 
-        #self.new_button = Gtk.Button(image=Gtk.Image().new_from_icon_name('list-add-symbolic', Gtk.IconSize.MENU))
-        # self.new_button.connect('clicked', self.on_new_press)
+        self.menu_button = Gtk.Button(image=Gtk.Image().new_from_icon_name('view-list-symbolic', Gtk.IconSize.MENU))
+        #self.menu_button.connect('clicked', self.on_menu_press)
 
         #self.del_button = Gtk.Button(image=Gtk.Image().new_from_icon_name('list-remove-symbolic', Gtk.IconSize.MENU))
         # self.del_button.connect('clicked', self.on_del_press)
@@ -175,7 +161,7 @@ class App:
         #self.find_button = Gtk.ToggleButton(image=Gtk.Image().new_from_icon_name('edit-find-symbolic', Gtk.IconSize.MENU))
         # self.find_button.connect('toggled', self.on_find_toggle)
 
-        # header.pack_start(self.new_button)
+        header.pack_start(self.menu_button)
         # header.pack_start(self.del_button)
         # # header.pack_start(self.back_button)
         # header.pack_end(self.find_button)
@@ -200,10 +186,6 @@ class App:
                     it = model.append(None, [ifile, i, depth, path, name])
                 else:
                     model.append(it, [ifile, i, depth, path, name])
-
-        # self.show_idx = self.idx
-        # self.model_filter.set_visible_func(self.visible_fn, self.show_idx)
-        # self.model_filter.refilter()
 
         return models
 
@@ -259,29 +241,10 @@ class App:
         return box
 
 
-    # def cell_data_fn_plot_name(self, column, cell, model, treeiter, data=None):
-    #     name = model.get_value(treeiter, 2)
-    #     #title = self.db.get_note_prop(idx, 'title')
-    #     #if self.db.get_note_prop(idx, 'content'):
-    #     #    title += '<i><span foreground=\'grey\'> ... </span></i>'
-    #     #if '!' in title:
-    #     title = '<b>' + name + '</b>'
-    #     cell.set_property('markup', title)
-
-    # def cell_data_fn_plot_opts(self, column, cell, model, treeiter, data=None):
-
-    #     item = model.get_value(treeiter, 1)
-
-    #     cell.set_property('text', default_colours[item])
-
-
     def close(self, window=None, dummy=None):
 
         for plot in self.plots:
             del plot
-
-        # save settings
-        # self.settings.save()
 
         Gtk.main_quit()
 
@@ -294,14 +257,8 @@ class App:
 
 
     def on_key_press(self, window, event):
+
         key = Gdk.keyval_name(event.keyval)
-        modifiers = Gtk.accelerator_get_default_mod_mask()
-
-        # if self.searchbar.get_search_mode() and key == 'Escape':
-        #     self.find_button.set_active(False)
-
-        # if self.stack.get_visible_child_name() == 'editor' and key == 'Escape':
-        #     self.exit_edit_note()
 
         if event.state and Gdk.ModifierType.CONTROL_MASK:
 
@@ -333,12 +290,25 @@ class App:
 
             return False
 
+        # move
+        if key == 'Left':
+            pass
+        elif key == 'Right':
+            pass
+        elif key == 'Down':
+            pass
+        elif key == 'Up':
+            pass
+        elif key == 'Tab':
+            pass
+
+
 
     def selected_row_callback(self, treesel, model, path, nose, ifile):
 
         treeiter = model.get_iter(path)
 
-        if model.iter_next(treeiter) is not None and model.is_ancestor(treeiter, model.iter_next(treeiter)):
+        if model.iter_next(treeiter) is not None and model.iter_has_child(treeiter):
             return False
 
         ifile = model.get_value(treeiter, 0)
@@ -368,6 +338,9 @@ class App:
         pass
 
     def on_button_up(self, btn):
+
+        selection = self.plot_model.get_selection()
+
         self.plot_model.move_after()
 
     def on_button_down(self, btn):
@@ -377,27 +350,24 @@ class App:
     ## Draw
     def draw(self):
 
-        """ Draw function. Creates a plot with the selected items and options """
-
         if not self.plot_model or len(self.plot_model) < 1:
             return
 
         plot = Plot()
 
-
+        # add objects
         for (ifile, item, path, opts) in self.plot_model:
 
             obj = self.files[ifile].get_object(path)
 
             plot.add(obj, opts)
 
-
-
+        # configure plot
         plot.logx = self.button_logx.get_active()
         plot.logy = self.button_logy.get_active()
 
+        # create
         plot.create()
-
         self.plots.append(plot)
 
         self.clear_plot()

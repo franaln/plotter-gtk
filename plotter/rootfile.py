@@ -14,8 +14,7 @@ class RootFile:
         self._file.Close()
 
     def __iter__(self):
-        depth = 0
-        for depth, path, name in self.browse_dir(depth, ''):
+        for depth, path, name in self.browse_dir(0, ''):
             yield (depth, path, name)
 
     def browse_dir(self, depth, parent_name):
@@ -44,15 +43,14 @@ class RootFile:
                 else:
                     yield (depth, path, name)
 
-                    for ddepth, dpath, dname in self.browse_dir(depth, name):
+                    for ddepth, dpath, dname in self.browse_dir(depth+1, name):
                         yield (ddepth, dpath, dname)
 
             elif obj.InheritsFrom('TH1') or obj.InheritsFrom('TGraph'):
                 yield (depth, path, name)
 
             else:
-                continue #yield (depth, path, name)
-
+                continue
 
 
     def get_object(self, path):
