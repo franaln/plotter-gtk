@@ -10,6 +10,7 @@ from gi.repository import Pango
 
 from plotter.rootfile import RootFile
 from plotter.plot import Plot
+from plotter.history import History
 from plotter.style import *
 
 import ROOT
@@ -40,6 +41,7 @@ class App:
         # plots
         self.plots = []
 
+        self.history = History()
 
     def create_window(self):
 
@@ -91,6 +93,14 @@ class App:
         self.plot_view.append_column(col2)
 
         # buttons
+        self.button_prev = Gtk.Button()
+        self.button_prev.add(Gtk.Arrow(Gtk.ArrowType.LEFT, Gtk.ShadowType.NONE))
+        self.button_prev.connect('clicked', self.on_button_prev)
+
+        self.button_next = Gtk.Button()
+        self.button_next.add(Gtk.Arrow(Gtk.ArrowType.RIGHT, Gtk.ShadowType.NONE))
+        self.button_next.connect('clicked', self.on_button_next)
+
         self.button_up = Gtk.Button()
         self.button_up.add(Gtk.Arrow(Gtk.ArrowType.UP, Gtk.ShadowType.NONE))
         self.button_up.connect('clicked', self.on_button_up)
@@ -120,6 +130,8 @@ class App:
         self.plot_box.pack_start(self.plot_view, True, True, 0)
 
         plot_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        plot_buttons.pack_start(self.button_prev, False, True, 0)
+        plot_buttons.pack_start(self.button_next, False, True, 0)
         plot_buttons.pack_start(self.button_up, False, True, 0)
         plot_buttons.pack_start(self.button_down, False, True, 0)
         # plot_buttons.pack_start(self.button_stack, False, True, 5)
@@ -254,6 +266,9 @@ class App:
 
 
     def clear_plot(self):
+
+        self.history.add([ (ifile, item, path, opts) for (ifile, item, path, opts) in self.plot_model ])
+
         self.plot_model.clear()
 
 
@@ -339,12 +354,19 @@ class App:
         pass
 
     def on_button_up(self, btn):
-
         selection = self.plot_model.get_selection()
-
         self.plot_model.move_after()
 
     def on_button_down(self, btn):
+        pass
+
+    def on_button_prev(self, btn):
+        self.clear_plot()
+        for obj in self.history.back():
+            print obj
+            self.plot_model.append(obj)
+
+    def on_button_next(self, btn):
         pass
 
 

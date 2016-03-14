@@ -489,6 +489,8 @@ class Plot:
                 legxmax = 0.92
 
         self.legend = ROOT.TLegend(legxmin, legymin, legxmax, legymax)
+        self.legend.SetBorderSize(0)
+        self.legend.SetFillColor(0)
 
         for obj, label in zip(self.objects, self.labels):
             self.legend.AddEntry(obj, label)
@@ -497,21 +499,16 @@ class Plot:
         if do_ratio:
             cup.cd()
 
-        # first histogram to configure (ROOT de mierda)
+        # first histogram to configure
         chist = self.objects[0]
 
         # Axis
         chist.GetXaxis().SetRangeUser(xmin, xmax)
         chist.GetYaxis().SetRangeUser(ymin, ymax)
 
-        # if do_ratio:
-        #     cup.RedrawAxis()
-        # else:
-        #     self.canvas.RedrawAxis()
-
-        if self.logy:
-            chist.SetMaximum(ymax*1000)
-            chist.SetMinimum(ymin)
+        # if self.logy:
+        #     chist.SetMaximum(ymax*1000)
+        #     chist.SetMinimum(ymin)
 
         # Titles and labels
         if xtitle:
@@ -540,13 +537,18 @@ class Plot:
 
         chist.Draw(self.drawopts[0])
 
+        if do_ratio:
+            cup.RedrawAxis()
+        else:
+            self.canvas.RedrawAxis()
+
         for obj, drawopts in zip(self.objects[1:], self.drawopts[1:]):
             obj.Draw(drawopts)
 
-        # if do_ratio:
-        #     cup.RedrawAxis()
-        # else:
-        #     self.canvas.RedrawAxis()
+        if do_ratio:
+            cup.RedrawAxis()
+        else:
+            self.canvas.RedrawAxis()
 
         self.legend.Draw()
 
