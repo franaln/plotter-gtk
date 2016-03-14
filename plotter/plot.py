@@ -286,7 +286,10 @@ class Plot:
 
         self.objects.append(obj.Clone(obj.GetName()))
 
-        self.drawopts.append(drawopts)
+        if self.drawopts:
+            self.drawopts.append(drawopts+'same')
+        else:
+            self.drawopts.append(drawopts)
 
         if not label:
             label = obj.GetName()
@@ -298,6 +301,13 @@ class Plot:
         self.canvas.Print(self.name + '.pdf')
 
     def dump(self):
+        text = ''
+
+        text += self.name + ' = ROOT.TCanvas("' + self.name + '", "' + self.name + '", 600, 600)\n'
+
+        for obj, drawopts in zip(self.objects, self.drawopts):
+            text += 'h_' + obj.GetName() + '.Draw("'+drawopts+'")\n'
+
         # (items_sel[k]->GetFile(), items_sel[k]->GetName(), items_sel[k]->GetText())
         # temp->SetDrawOptions(lnk->GetOption())
         # temp->SetColour(colours[k])
@@ -306,7 +316,48 @@ class Plot:
         # if(checkNormalise->GetState() ) temp->SetScaleFactor(1/h->Integral())
         # if(checkNormalise2->GetState()) temp->SetScaleFactor(((TH1*)plot_list->At(0))->Integral()/h->Integral())
         # //        macro->AddHisto(temp)
-        pass
+
+        return text
+
+
+    def get_ymax(self):
+
+        ymax = -1.e300
+        for obj in self.objects:
+            hmax = obj.GetMaximum()
+            if hmax > ymax:
+                ymax = hmax
+
+        return ymax
+
+    def get_ymin(self):
+
+        ymin = 1.e300
+
+        for obj in self.objects:
+            hmin = obj.GetMinimum()
+            if hmin < ymin:
+                ymin = hmin
+
+        return ymin
+
+    def get_xmax(self):
+        xmax = -1.e300
+        for obj in self.objects:
+            hmax = obj.GetXaxis().GetXmax()
+            if hmax > xmax:
+                xmax = hmax
+
+        return xmax
+
+    def get_xmin(self):
+        xmin = 1.e300
+        for obj in self.objects:
+            hmin = obj.GetXaxis().GetXmin()
+            if hmin < xmin:
+                xmin = hmin
+
+        return xmin
 
 
     def create(self):
@@ -343,6 +394,17 @@ class Plot:
         xmax   = conf.xmax
         legpos = conf.legpos
 
+        if xmin is None:
+            xmin = self.get_xmin()
+
+        if xmax is None:
+            xmax = self.get_xmax()
+
+        ymin = self.get_ymin()
+        ymax = self.get_ymax()
+
+        if self.logy:
+            ymin = 0.01
 
         self.canvas = ROOT.TCanvas(self.name, self.name, 600, 600)
         ROOT.SetOwnership(self.canvas, False)
@@ -438,24 +500,18 @@ class Plot:
         # first histogram to configure (ROOT de mierda)
         chist = self.objects[0]
 
-        if xmin is not None and xmax is not None:
-            chist.GetXaxis().SetRangeUser(xmin, xmax)
+        # Axis
+        chist.GetXaxis().SetRangeUser(xmin, xmax)
+        chist.GetYaxis().SetRangeUser(ymin, ymax)
 
-        if chist.GetXaxis().GetXmax() < 5.:
-            chist.GetXaxis().SetNdivisions(512)
-        else:
-            chist.GetXaxis().SetNdivisions(508)
-
-
-        if do_ratio:
-            cup.RedrawAxis()
-        else:
-            self.canvas.RedrawAxis()
-
-        chist.SetMinimum(0.01)
+        # if do_ratio:
+        #     cup.RedrawAxis()
+        # else:
+        #     self.canvas.RedrawAxis()
 
         if self.logy:
-            chist.SetMaximum(chist.GetMaximum()*1000)
+            chist.SetMaximum(ymax*1000)
+            chist.SetMinimum(ymin)
 
         # Titles and labels
         if xtitle:
@@ -482,16 +538,15 @@ class Plot:
         #data_graph.Draw('P0Z')
         #data.Draw("P same")
 
-
         chist.Draw(self.drawopts[0])
 
         for obj, drawopts in zip(self.objects[1:], self.drawopts[1:]):
-            obj.Draw(drawopts+'same')
+            obj.Draw(drawopts)
 
-        if do_ratio:
-            cup.RedrawAxis()
-        else:
-            self.canvas.RedrawAxis()
+        # if do_ratio:
+        #     cup.RedrawAxis()
+        # else:
+        #     self.canvas.RedrawAxis()
 
         self.legend.Draw()
 

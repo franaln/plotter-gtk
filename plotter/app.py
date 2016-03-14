@@ -10,6 +10,7 @@ from gi.repository import Pango
 
 from plotter.rootfile import RootFile
 from plotter.plot import Plot
+from plotter.style import *
 
 import ROOT
 
