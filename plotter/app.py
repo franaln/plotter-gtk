@@ -19,7 +19,6 @@ import ROOT
 NAME    = 'plotter'
 VERSION = '0.1dev'
 
-
 class App:
 
     def __init__(self, file_paths):
@@ -29,11 +28,15 @@ class App:
         # files
         self.files = []
         for path in file_paths:
+            print('loading %s' % path)
             self.files.append(RootFile(path))
 
         # models
         self.models = self.create_models()
         self.views = self.create_views()
+
+        # plot model: (file, item, path, opts)
+        self.plot_model = Gtk.ListStore(int, int, str, str)
 
         # create main window
         self.create_window()
@@ -42,6 +45,7 @@ class App:
         self.plots = []
 
         self.history = History()
+
 
     def create_window(self):
 
@@ -65,86 +69,8 @@ class App:
 
             self.mainbox.pack_start(box, True, True, 0)
 
-        # plot box
-        self.plot_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        self.plot_label = Gtk.Label('Plot')
-        self.plot_box.pack_start(self.plot_label, False, True, 8)
-
-        # plot model: (file, item, path, opts)
-        self.plot_model = Gtk.ListStore(int, int, str, str)
-        self.plot_view = Gtk.TreeView(self.plot_model)
-
-        tr = Gtk.CellRendererText()
-        tr.props.wrap_width = 300
-        col1 = Gtk.TreeViewColumn("Objects", tr, text=2)
-        col1.set_min_width(200)
-
-        tr2 = Gtk.CellRendererText()
-        tr2.props.foreground = 'grey'
-        tr2.props.style =Pango.Style.ITALIC
-        tr2.props.scale = 0.8
-        col2 = Gtk.TreeViewColumn("Options", tr2, text=3)
-
-        selection = self.plot_view.get_selection()
-        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
-
-        self.plot_view.append_column(col1)
-        self.plot_view.append_column(col2)
-
-        # buttons
-        self.button_prev = Gtk.Button()
-        self.button_prev.add(Gtk.Arrow(Gtk.ArrowType.LEFT, Gtk.ShadowType.NONE))
-        self.button_prev.connect('clicked', self.on_button_prev)
-
-        self.button_next = Gtk.Button()
-        self.button_next.add(Gtk.Arrow(Gtk.ArrowType.RIGHT, Gtk.ShadowType.NONE))
-        self.button_next.connect('clicked', self.on_button_next)
-
-        self.button_up = Gtk.Button()
-        self.button_up.add(Gtk.Arrow(Gtk.ArrowType.UP, Gtk.ShadowType.NONE))
-        self.button_up.connect('clicked', self.on_button_up)
-
-        self.button_down = Gtk.Button()
-        self.button_down.add(Gtk.Arrow(Gtk.ArrowType.DOWN, Gtk.ShadowType.NONE))
-        self.button_down.connect('clicked', self.on_button_down)
-
-        self.button_stack = Gtk.Button('Stack')
-
-        self.button_logx = Gtk.CheckButton('logx')
-        self.button_logy = Gtk.CheckButton('logy')
-
-        self.button_clear = Gtk.Button('Clear')
-        self.button_clear.connect('clicked', self.on_button_clear)
-
-        self.button_draw = Gtk.Button('Draw')
-        self.button_draw.connect('clicked', self.on_button_draw)
-
-        self.button_draw_ratio = Gtk.Button('Draw Ratio')
-        self.button_draw_ratio.connect('clicked', self.on_button_draw_ratio)
-
-        self.button_draw_and_ratio = Gtk.Button('Draw + Ratio')
-        self.button_draw_and_ratio.connect('clicked', self.on_button_draw_and_ratio)
-
-
-        self.plot_box.pack_start(self.plot_view, True, True, 0)
-
-        plot_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        plot_buttons.pack_start(self.button_prev, False, True, 0)
-        plot_buttons.pack_start(self.button_next, False, True, 0)
-        plot_buttons.pack_start(self.button_up, False, True, 0)
-        plot_buttons.pack_start(self.button_down, False, True, 0)
-        # plot_buttons.pack_start(self.button_stack, False, True, 5)
-        plot_buttons.pack_end(self.button_logy, False, True, 2)
-        plot_buttons.pack_end(self.button_logx, False, True, 2)
-
-        self.plot_box.pack_start(plot_buttons, False, True, 2)
-        self.plot_box.pack_start(self.button_clear, False, True, 2)
-        # self.plot_box.pack_start(self.button_draw_ratio, False, True, 2)
-        # self.plot_box.pack_start(self.button_draw_and_ratio, False, True, 2)
-        self.plot_box.pack_start(self.button_draw, False, True, 2)
-
-        self.mainbox.pack_start(self.plot_box, True, True, 0)
+        self.create_plot_box()
+        self.mainbox.pack_start(self.plotbox, True, True, 0)
 
         self.window.add(self.mainbox)
         self.window.show_all()
@@ -182,12 +108,115 @@ class App:
         return header
 
 
+    def create_files_box(self):
+        pass
+
+    def create_plot_box(self):
+
+        self.plotbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Top Box
+        self.top_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        self.plot_label = Gtk.Label('Plot')
+
+        self.button_prev = Gtk.Button()
+        self.button_prev.add(Gtk.Arrow(Gtk.ArrowType.LEFT, Gtk.ShadowType.NONE))
+
+        self.button_next = Gtk.Button()
+        self.button_next.add(Gtk.Arrow(Gtk.ArrowType.RIGHT, Gtk.ShadowType.NONE))
+
+        self.button_prev.connect('clicked', self.on_button_prev)
+        self.button_next.connect('clicked', self.on_button_next)
+
+        self.top_box.pack_start(self.plot_label, True, True, 0)
+        self.top_box.pack_start(self.button_prev, False, False, 0)
+        self.top_box.pack_start(self.button_next, False, False, 2)
+
+        # Middle Box
+        self.plot_view = Gtk.TreeView(self.plot_model)
+
+        tr = Gtk.CellRendererText()
+        tr.props.wrap_width = 300
+        col1 = Gtk.TreeViewColumn("Objects", tr, text=2)
+        col1.set_min_width(200)
+        #col1.set_cell_data_func(tr, self.cell_data_fn_object)
+
+        tr2 = Gtk.CellRendererText()
+        tr2.props.foreground = 'grey'
+        tr2.props.style =Pango.Style.ITALIC
+        tr2.props.scale = 0.8
+        col2 = Gtk.TreeViewColumn("Options", tr2, text=3)
+
+        selection = self.plot_view.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+
+        self.plot_view.append_column(col1)
+        self.plot_view.append_column(col2)
+
+        # buttons
+        self.button_up = Gtk.Button()
+        self.button_up.add(Gtk.Arrow(Gtk.ArrowType.UP, Gtk.ShadowType.NONE))
+
+        self.button_down = Gtk.Button()
+        self.button_down.add(Gtk.Arrow(Gtk.ArrowType.DOWN, Gtk.ShadowType.NONE))
+
+        self.button_stack = Gtk.Button('Stack')
+        self.button_rebin = Gtk.Button('Rebin')
+
+        self.button_norm = Gtk.CheckButton('norm')
+        self.button_hist = Gtk.CheckButton('hist')
+        self.button_colz = Gtk.CheckButton('colz')
+
+        self.button_logx = Gtk.CheckButton('logx')
+        self.button_logy = Gtk.CheckButton('logy')
+
+        #self.button_clear = Gtk.Button('Add Cut')
+        self.button_clear = Gtk.Button('Clear')
+        self.button_draw = Gtk.Button('Draw')
+        self.button_draw_ratio = Gtk.Button('Draw Ratio')
+        self.button_draw_and_ratio = Gtk.Button('Draw + Ratio')
+
+        self.button_up.connect('clicked', self.on_button_up)
+        self.button_down.connect('clicked', self.on_button_down)
+        self.button_clear.connect('clicked', self.on_button_clear)
+        self.button_draw.connect('clicked', self.on_button_draw)
+        self.button_draw_ratio.connect('clicked', self.on_button_draw_ratio)
+        self.button_draw_and_ratio.connect('clicked', self.on_button_draw_and_ratio)
+
+        # Selection box
+        self.sel_box = Gtk.Entry()
+        self.sel_box.set_placeholder_text('Tree Selection')
+
+
+        # Bottom Box
+        self.bottom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        #self.bottom_box.pack_start(self.button_prev, False, True, 0)
+        # self.bottom_box.pack_start(self.button_next, False, True, 0)
+        self.bottom_box.pack_start(self.button_up, False, True, 0)
+        self.bottom_box.pack_start(self.button_down, False, True, 0)
+        self.bottom_box.pack_end(self.button_norm, False, True, 2)
+        self.bottom_box.pack_end(self.button_hist, False, True, 2)
+        self.bottom_box.pack_end(self.button_colz, False, True, 2)
+        self.bottom_box.pack_end(self.button_logy, False, True, 2)
+        self.bottom_box.pack_end(self.button_logx, False, True, 2)
+
+        # All together
+        self.plotbox.pack_start(self.top_box, False, True, 8)
+        self.plotbox.pack_start(self.plot_view, True, True, 0)
+        self.plotbox.pack_start(self.sel_box, False, True, 2)
+        self.plotbox.pack_start(self.bottom_box, False, True, 2)
+        self.plotbox.pack_start(self.button_clear, False, True, 2)
+        self.plotbox.pack_start(self.button_draw, False, True, 2)
+        self.plotbox.pack_start(self.button_draw_ratio, False, True, 2)
+        self.plotbox.pack_start(self.button_draw_and_ratio, False, True, 2)
+
+
     def create_models(self):
 
         models = []
-        for i in xrange(self.nfiles):
+        for i in range(self.nfiles):
             models.append(Gtk.TreeStore(int, int, int, str, str))
-
 
         # fill each model
         # item: (file, item, depth, path, name)
@@ -195,13 +224,13 @@ class App:
 
             for i, (depth, path, name) in enumerate(self.files[ifile]):
 
+                path = '%i:%s' % (ifile, path)
                 if depth == 0:
                     it = model.append(None, [ifile, i, depth, path, name])
                 else:
                     model.append(it, [ifile, i, depth, path, name])
 
         return models
-
 
     def create_views(self):
 
@@ -244,7 +273,6 @@ class App:
         # self.searchbar.connect_entry(self.entry)
         # self.searchbar.props.hexpand = False
 
-
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.add(view)
@@ -253,9 +281,7 @@ class App:
         box.pack_start(scroll, True, True, 0)
         return box
 
-
     def close(self, window=None, dummy=None):
-
         for plot in self.plots:
             del plot
 
@@ -264,13 +290,9 @@ class App:
     def run(self):
         Gtk.main()
 
-
     def clear_plot(self):
-
-        self.history.add([ (ifile, item, path, opts) for (ifile, item, path, opts) in self.plot_model ])
-
         self.plot_model.clear()
-
+        self.update_plot_label()
 
     def on_key_press(self, window, event):
 
@@ -319,7 +341,6 @@ class App:
             pass
 
 
-
     def selected_row_callback(self, treesel, model, path, nose, ifile):
 
         treeiter = model.get_iter(path)
@@ -338,7 +359,6 @@ class App:
         self.plot_model.append((ifile, item, path, opts))
 
         return False
-
 
     ## Buttons cb
     def on_button_clear(self, btn):
@@ -362,13 +382,24 @@ class App:
 
     def on_button_prev(self, btn):
         self.clear_plot()
-        for obj in self.history.back():
-            print obj
-            self.plot_model.append(obj)
+
+        prev_plot = self.history.back()
+
+        if prev_plot is not None:
+            for obj in prev_plot:
+                self.plot_model.append(obj)
+
+        self.update_plot_label()
 
     def on_button_next(self, btn):
-        pass
+        self.clear_plot()
+        for obj in self.history.forward():
+            self.plot_model.append(obj)
 
+        self.update_plot_label()
+
+    def update_plot_label(self):
+        self.plot_label.set_label('Plot (%i/%i)' % (self.history.index()+1, len(self.history)+1))
 
     ## Draw
     def draw(self):
@@ -376,12 +407,29 @@ class App:
         if not self.plot_model or len(self.plot_model) < 1:
             return
 
+
         plot = Plot()
 
+        selection = self.sel_box.get_text()
+
         # add objects
+        first_hist_norm = None
         for (ifile, item, path, opts) in self.plot_model:
 
-            obj = self.files[ifile].get_object(path)
+            obj = self.files[ifile].get_object(path, selection).Clone()
+            obj.SetDirectory(0)
+            ROOT.SetOwnership(obj, False)
+
+            if self.button_hist.get_active():
+                opts += ',hist'
+            if self.button_colz.get_active():
+                opts += ',colz'
+
+            if self.button_norm.get_active():
+                if first_hist_norm is None:
+                    first_hist_norm = obj.Integral()
+                else:
+                    obj.Scale(first_hist_norm/obj.Integral())
 
             plot.add(obj, opts)
 
@@ -392,5 +440,8 @@ class App:
         # create
         plot.create()
         self.plots.append(plot)
+        plot.canvas.Update()
+        self.history.add([ (ifile, item, path, opts) for (ifile, item, path, opts) in self.plot_model ])
+
 
         self.clear_plot()

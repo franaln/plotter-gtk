@@ -102,6 +102,5 @@ default_colours = [
     'blue',
     'green',
     'yellow',
-    'magenta',
     'orange',
 ]

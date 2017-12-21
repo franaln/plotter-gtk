@@ -20,7 +20,6 @@ class RootFile:
     def browse_dir(self, depth, parent_name):
 
         cdir = self._file.GetDirectory(parent_name)
-
         for key in cdir.GetListOfKeys():
             obj = key.ReadObj()
             name = obj.GetName()
@@ -30,6 +29,9 @@ class RootFile:
             else:
                 path = name
 
+            if obj.InheritsFrom('TList'):
+                continue
+
             if obj.IsFolder():
                 if obj.InheritsFrom('TTree'):
 
@@ -38,7 +40,7 @@ class RootFile:
                     tree = self._file.Get(name)
                     for b in tree.GetListOfLeaves():
                         bname = b.GetName()
-                        yield (depth+1, name + ':' + bname, bname)
+                        yield (depth+1, name + '//' + bname, bname)
 
                 else:
                     yield (depth, path, name)
@@ -53,37 +55,34 @@ class RootFile:
                 continue
 
 
-    def get_object(self, path):
+    def get_object(self, path, selection=''):
+
+        _, path = path.split(':')
 
         # tree
-        if ':' in path:
+        if '//' in path:
 
-            treename, name = path.split(':')
-
-            hname = "h_" + name
+            treename, name = path.split('//')
 
             tree = ROOT.TTree(treename, '')
             self._file.GetObject(treename, tree)
 
-            tree.Draw(name+'>>'+hname, '', 'goff')
+            tree.Draw(name+'>>'+name, selection, 'goff')
 
             #htmp = ROOT.TH1F(hname, hname, 100, 0, 100)
             #tree.Project(hname, name, '')
 
-            htmp = ROOT.gDirectory.Get(hname)
+            htmp = ROOT.gDirectory.Get(name)
 
             obj = htmp.Clone()
 
-
         elif '/' in path:
             dirname, name = path.split('/')
-
             obj = None
 
         else:
             # histogram/graph
             obj = self._file.Get(path)
-
 
 
         ROOT.SetOwnership(obj, False)

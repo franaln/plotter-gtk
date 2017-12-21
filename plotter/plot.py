@@ -38,7 +38,7 @@ plots_conf['jet_n']           = PlotConf('Number of jets', 'Events', 'right')
 plots_conf['ph_pt']           = PlotConf('p_{T}^{#gamma} [GeV]', 'Events / (BIN GeV)', 'right')
 plots_conf['ph_eta']          = PlotConf('Photon #eta', 'Events / (BIN GeV)', 'right')
 plots_conf['ph_phi']          = PlotConf('Photon #phi', 'Events / (BIN GeV)', 'right')
-plots_conf['ph_iso']          = PlotConf('Isolation (Etcone20) [GeV]', 'Events (1/BIN GeV)', 'right')
+plots_conf['ph_iso']          = PlotConf('E_{T}^{iso} [GeV]', 'Events (1/BIN GeV)', 'right')
 plots_conf['met_et']          = PlotConf('E_{T}^{miss} [GeV]', 'Events / (BIN GeV)', 'right', 0, 500)
 plots_conf['met_phi']         = PlotConf('#phi^{miss}', 'Events', 'right')
 plots_conf['ht']              = PlotConf('H_{T} [GeV]', 'Events / (BIN GeV)', 'right')
@@ -264,6 +264,8 @@ class Plot:
         self.logx = False
         self.logy = False
 
+        self.logy = False
+
         Plot.number_of_plot = Plot.number_of_plot + 1
 
     @classmethod
@@ -284,7 +286,7 @@ class Plot:
         # set_style(obj, colour)
         set_style(obj, colour)
 
-        self.objects.append(obj.Clone(obj.GetName()))
+        self.objects.append(obj)
 
         if self.drawopts:
             self.drawopts.append(drawopts+'same')
@@ -406,7 +408,7 @@ class Plot:
         if self.logy:
             ymin = 0.01
 
-        self.canvas = ROOT.TCanvas(self.name, self.name, 600, 600)
+        self.canvas = ROOT.TCanvas(self.name, self.name, 800, 600)
         ROOT.SetOwnership(self.canvas, False)
 
         self.canvas.cd()
@@ -512,9 +514,11 @@ class Plot:
 
         # Titles and labels
         if xtitle:
-            chist.GetXaxis().SetTitle(xtitle)
-            chist.GetXaxis().SetTitleOffset(1.20)
-            chist.GetXaxis().SetLabelSize(0.)
+            if do_ratio:
+                chist.GetXaxis().SetLabelSize(0.)
+            else:
+                chist.GetXaxis().SetTitle(xtitle)
+                chist.GetXaxis().SetTitleOffset(1.20)
 
         if 'BIN' in ytitle:
             width = chist.GetBinWidth(1)
