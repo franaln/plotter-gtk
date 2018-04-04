@@ -15,7 +15,6 @@ from plotter.style import *
 
 import ROOT
 
-
 NAME    = 'plotter'
 VERSION = '0.1dev'
 
@@ -35,8 +34,8 @@ class App:
         self.models = self.create_models()
         self.views = self.create_views()
 
-        # plot model: (file, item, path, opts)
-        self.plot_model = Gtk.ListStore(int, int, str, str)
+        # plot model: (file, item, path, opts, sel)
+        self.plot_model = Gtk.ListStore(int, int, str, str, str)
 
         # create main window
         self.create_window()
@@ -50,14 +49,26 @@ class App:
     def create_window(self):
 
         self.window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
-        self.window.set_default_size(500, 600)
+        self.window.set_default_size(600, 600)
         self.window.set_position(Gtk.WindowPosition.CENTER)
 
         self.window.connect('key_press_event', self.on_key_press)
         self.window.connect('delete_event', self.close)
 
+        self.winbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Header Bar
         self.headerbar = self.create_header()
         self.window.set_titlebar(self.headerbar)
+
+        # Search bar
+        self.search_bar = Gtk.SearchBar()
+        self.search_entry = Gtk.SearchEntry(placeholder_text='Search...')
+        # #self.entry.connect('search-changed', self.on_search)
+        # self.search_entry.connect('changed', self.on_search)
+
+        self.search_bar.connect_entry(self.search_entry)
+        self.search_bar.add(self.search_entry)
 
         self.mainbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
 
@@ -72,11 +83,15 @@ class App:
         self.create_plot_box()
         self.mainbox.pack_start(self.plotbox, True, True, 0)
 
-        self.window.add(self.mainbox)
+        self.winbox.pack_start(self.search_bar, False, False, 0)
+        self.winbox.pack_start(self.mainbox, True, True, 0)
+
+        self.window.add(self.winbox)
         self.window.show_all()
 
 
     def create_header(self):
+
         header = Gtk.HeaderBar()
         header.set_show_close_button(True)
         header.get_style_context().add_class('titlebar')
@@ -91,19 +106,11 @@ class App:
         self.menu_button = Gtk.Button(image=Gtk.Image().new_from_icon_name('view-list-symbolic', Gtk.IconSize.MENU))
         #self.menu_button.connect('clicked', self.on_menu_press)
 
-        #self.del_button = Gtk.Button(image=Gtk.Image().new_from_icon_name('list-remove-symbolic', Gtk.IconSize.MENU))
-        # self.del_button.connect('clicked', self.on_del_press)
-
-        # self.back_button = Gtk.Button(image=Gtk.Image().new_from_icon_name('go-previous-symbolic', Gtk.IconSize.MENU))
-        # self.back_button.connect('clicked', self.on_back_press)
-
-        #self.find_button = Gtk.ToggleButton(image=Gtk.Image().new_from_icon_name('edit-find-symbolic', Gtk.IconSize.MENU))
+        self.find_button = Gtk.ToggleButton(image=Gtk.Image().new_from_icon_name('edit-find-symbolic', Gtk.IconSize.MENU))
         # self.find_button.connect('toggled', self.on_find_toggle)
 
         header.pack_start(self.menu_button)
-        # header.pack_start(self.del_button)
-        # # header.pack_start(self.back_button)
-        # header.pack_end(self.find_button)
+        header.pack_end(self.find_button)
 
         return header
 
@@ -129,7 +136,7 @@ class App:
         self.button_prev.connect('clicked', self.on_button_prev)
         self.button_next.connect('clicked', self.on_button_next)
 
-        self.top_box.pack_start(self.plot_label, True, True, 0)
+        self.top_box.pack_start(self.plot_label,  True, True, 0)
         self.top_box.pack_start(self.button_prev, False, False, 0)
         self.top_box.pack_start(self.button_next, False, False, 2)
 
@@ -144,15 +151,23 @@ class App:
 
         tr2 = Gtk.CellRendererText()
         tr2.props.foreground = 'grey'
-        tr2.props.style =Pango.Style.ITALIC
+        tr2.props.style = Pango.Style.ITALIC
         tr2.props.scale = 0.8
         col2 = Gtk.TreeViewColumn("Options", tr2, text=3)
+
+
+        tr3 = Gtk.CellRendererText()
+        tr3.set_property('editable', True)
+        tr3.connect("edited", self.on_tr_sel_edited)
+        col3 = Gtk.TreeViewColumn("Selection", tr3, text=4)
+        col3.set_visible(False)
 
         selection = self.plot_view.get_selection()
         selection.set_mode(Gtk.SelectionMode.MULTIPLE)
 
         self.plot_view.append_column(col1)
         self.plot_view.append_column(col2)
+        self.plot_view.append_column(col3)
 
         # buttons
         self.button_up = Gtk.Button()
@@ -184,10 +199,9 @@ class App:
         self.button_draw_ratio.connect('clicked', self.on_button_draw_ratio)
         self.button_draw_and_ratio.connect('clicked', self.on_button_draw_and_ratio)
 
-        # Selection box
-        self.sel_box = Gtk.Entry()
-        self.sel_box.set_placeholder_text('Tree Selection')
-
+        # Add selection column
+        self.button_sel = Gtk.ToggleButton('Selection')
+        self.button_sel.connect('toggled', self.on_button_sel)
 
         # Bottom Box
         self.bottom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -200,16 +214,16 @@ class App:
         self.bottom_box.pack_end(self.button_colz, False, True, 2)
         self.bottom_box.pack_end(self.button_logy, False, True, 2)
         self.bottom_box.pack_end(self.button_logx, False, True, 2)
+        self.bottom_box.pack_end(self.button_sel,  False, True, 2)
 
         # All together
         self.plotbox.pack_start(self.top_box, False, True, 8)
         self.plotbox.pack_start(self.plot_view, True, True, 0)
-        self.plotbox.pack_start(self.sel_box, False, True, 2)
         self.plotbox.pack_start(self.bottom_box, False, True, 2)
         self.plotbox.pack_start(self.button_clear, False, True, 2)
         self.plotbox.pack_start(self.button_draw, False, True, 2)
-        self.plotbox.pack_start(self.button_draw_ratio, False, True, 2)
-        self.plotbox.pack_start(self.button_draw_and_ratio, False, True, 2)
+        # self.plotbox.pack_start(self.button_draw_ratio, False, True, 2)
+        # self.plotbox.pack_start(self.button_draw_and_ratio, False, True, 2)
 
 
     def create_models(self):
@@ -249,10 +263,12 @@ class App:
             cell_name.props.wrap_mode = Pango.WrapMode.WORD
             cell_name.props.wrap_width = 200
 
-            column_note = Gtk.TreeViewColumn('(%i) %s' % (i, self.files[i].name[:25]), cell_name, text=4)
-            column_note.set_min_width(100)
+            column_note = Gtk.TreeViewColumn('(%i) %s' % (i, self.files[i].name), cell_name, text=4)
+            column_note.set_min_width(150)
             column_note.set_expand(True)
             view.append_column(column_note)
+
+            view.expand_all()
 
             views.append(view)
 
@@ -263,21 +279,10 @@ class App:
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        # search entry
-        # self.entry = Gtk.SearchEntry(placeholder_text='Search...')
-        # self.entry.connect('search-changed', self.on_search)
-        # self.entry.set_hexpand(True)
-
-        # self.searchbar = Gtk.SearchBar()
-        # self.searchbar.add(self.entry)
-        # self.searchbar.connect_entry(self.entry)
-        # self.searchbar.props.hexpand = False
-
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.add(view)
 
-        # box.pack_start(self.searchbar, False, False, 0)
         box.pack_start(scroll, True, True, 0)
         return box
 
@@ -294,6 +299,10 @@ class App:
         self.plot_model.clear()
         self.update_plot_label()
 
+    def on_search(self, entry):
+        txt = entry.get_text().lower()
+        print(txt)
+
     def on_key_press(self, window, event):
 
         key = Gdk.keyval_name(event.keyval)
@@ -305,9 +314,11 @@ class App:
                 self.close()
 
             ## ctrl-f: find
-            # elif key == 'f':
-            #     self.find_button.set_active(True)
-            #     self.entry.grab_focus()
+            elif key == 'f':
+                if self.search_bar.get_search_mode():
+                    self.search_bar.set_search_mode(False)
+                else:
+                    self.search_bar.set_search_mode(True)
 
             ## ctrl-d: draw
             elif key == 'd':
@@ -351,14 +362,20 @@ class App:
         ifile = model.get_value(treeiter, 0)
         path  = model.get_value(treeiter, 3)
         item = len(self.plot_model)
-        opts = default_colours[item]
 
-        if (ifile, item, path, opts) in self.plot_model:
+        opts = default_colours[item]
+        if item > 0:
+            opts += ',same'
+
+        sel = ''
+
+        if (ifile, item, path, opts, sel) in self.plot_model:
             return False
 
-        self.plot_model.append((ifile, item, path, opts))
+        self.plot_model.append((ifile, item, path, opts, sel))
 
         return False
+
 
     ## Buttons cb
     def on_button_clear(self, btn):
@@ -398,8 +415,18 @@ class App:
 
         self.update_plot_label()
 
+
+    def on_tr_sel_edited(self, widget, path, text):
+        self.plot_model[path][4] = text
+
+    def on_button_sel(self, btn):
+        col = self.plot_view.get_column(2)
+        col.set_visible(not col.get_visible())
+
+
     def update_plot_label(self):
         self.plot_label.set_label('Plot (%i/%i)' % (self.history.index()+1, len(self.history)+1))
+
 
     ## Draw
     def draw(self):
@@ -407,16 +434,13 @@ class App:
         if not self.plot_model or len(self.plot_model) < 1:
             return
 
-
         plot = Plot()
-
-        selection = self.sel_box.get_text()
 
         # add objects
         first_hist_norm = None
-        for (ifile, item, path, opts) in self.plot_model:
+        for (ifile, item, path, opts, sel) in self.plot_model:
 
-            obj = self.files[ifile].get_object(path, selection).Clone()
+            obj = self.files[ifile].get_object(path, sel).Clone()
             obj.SetDirectory(0)
             ROOT.SetOwnership(obj, False)
 
@@ -433,15 +457,15 @@ class App:
 
             plot.add(obj, opts)
 
-        # configure plot
-        plot.logx = self.button_logx.get_active()
-        plot.logy = self.button_logy.get_active()
 
         # create
-        plot.create()
+        plot.create(
+            logx=self.button_logx.get_active(),
+            logy=self.button_logy.get_active()
+        )
+
         self.plots.append(plot)
         plot.canvas.Update()
-        self.history.add([ (ifile, item, path, opts) for (ifile, item, path, opts) in self.plot_model ])
-
+        self.history.add([ (ifile, item, path, opts, sel) for (ifile, item, path, opts, sel) in self.plot_model ])
 
         self.clear_plot()

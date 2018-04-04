@@ -3,7 +3,7 @@ class History:
     def __init__(self, maxlen=100):
         self._history = []
         self._index = 0
-        self.maxlen = maxlen
+        self._maxlen = maxlen
 
     def add(self, item):
         # Remove everything after index
@@ -17,9 +17,11 @@ class History:
         #     else:
         #         if self._history and self._history[-1] == item:
         #             del self._history[-1]
+
         # Remove first if list is too long
-        if len(self._history) > max(self.maxlen - 1, 0):
+        if len(self._history) > max(self._maxlen-1, 0):
             del self._history[0]
+
         # Append the item and fast forward
         self._history.append(item)
         self._index = len(self._history) - 1

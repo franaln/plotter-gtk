@@ -289,7 +289,7 @@ class Plot:
         self.objects.append(obj)
 
         if self.drawopts:
-            self.drawopts.append(drawopts+'same')
+            self.drawopts.append(drawopts)
         else:
             self.drawopts.append(drawopts)
 
@@ -362,7 +362,7 @@ class Plot:
         return xmin
 
 
-    def create(self):
+    def create(self, logx=False, logy=False):
 
         do_ratio = False
 
