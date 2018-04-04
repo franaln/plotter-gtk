@@ -209,9 +209,9 @@ class App:
         # self.bottom_box.pack_start(self.button_next, False, True, 0)
         self.bottom_box.pack_start(self.button_up, False, True, 0)
         self.bottom_box.pack_start(self.button_down, False, True, 0)
-        self.bottom_box.pack_end(self.button_norm, False, True, 2)
-        self.bottom_box.pack_end(self.button_hist, False, True, 2)
-        self.bottom_box.pack_end(self.button_colz, False, True, 2)
+        #self.bottom_box.pack_end(self.button_norm, False, True, 2)
+        #self.bottom_box.pack_end(self.button_hist, False, True, 2)
+        #self.bottom_box.pack_end(self.button_colz, False, True, 2)
         self.bottom_box.pack_end(self.button_logy, False, True, 2)
         self.bottom_box.pack_end(self.button_logx, False, True, 2)
         self.bottom_box.pack_end(self.button_sel,  False, True, 2)
@@ -391,11 +391,43 @@ class App:
         pass
 
     def on_button_up(self, btn):
-        selection = self.plot_model.get_selection()
-        self.plot_model.move_after()
+
+        selection = self.plot_view.get_selection()
+        (model, pathlist) = selection.get_selected_rows()
+
+        if not pathlist:
+            return
+
+        path = pathlist[0]
+
+        curr_iter = self.plot_model.get_iter(path)
+
+        if not path.prev():
+            return
+
+        prev_iter = self.plot_model.get_iter(path)
+
+        self.plot_model.move_before(curr_iter, prev_iter)
 
     def on_button_down(self, btn):
-        pass
+
+        selection = self.plot_view.get_selection()
+        (model, pathlist) = selection.get_selected_rows()
+
+        # if not pathlist:
+        #     return
+
+        path = pathlist[0]
+
+        curr_iter = self.plot_model.get_iter(path)
+
+        # if not path.next():
+        #     return
+
+        next_iter = self.plot_model.get_iter(path)
+
+        self.plot_model.move_after(curr_iter, next_iter)
+
 
     def on_button_prev(self, btn):
         self.clear_plot()
