@@ -27,9 +27,19 @@ class App:
 
         # files
         self.files = []
-        for path in file_paths:
-            print('loading %s' % path)
-            self.files.append(RootFile(path))
+        for i, path in enumerate(file_paths):
+            print('Loading file %i: %s' % (i, path))
+
+            f = RootFile(path)
+
+            # check if file is valid
+            if f.is_valid():
+                self.files.append(f)
+            else:
+                pass
+
+
+
 
         # models
         self.models = self.create_models()
@@ -294,6 +304,116 @@ class App:
         self.plot_model.clear()
         self.update_plot_label()
 
+
+
+    def selected_row_callback(self, treesel, model, path, nose, ifile):
+
+        treeiter = model.get_iter(path)
+
+        if model.iter_next(treeiter) is not None and model.iter_has_child(treeiter):
+            return False
+
+        ifile = model.get_value(treeiter, 0)
+        path  = model.get_value(treeiter, 3)
+        item = len(self.plot_model)
+        opts = default_colours[item]
+
+        if (ifile, item, path, opts) in self.plot_model:
+            return False
+
+        self.plot_model.append((ifile, item, path, opts))
+
+        return False
+
+
+    ## Draw
+    def draw(self):
+
+        if not self.plot_model or len(self.plot_model) < 1:
+            return
+
+        plot = Plot()
+
+        selection = self.sel_box.get_text()
+
+        # add objects
+        first_hist_norm = None
+        for (ifile, item, path, opts) in self.plot_model:
+
+            obj = self.files[ifile].get_object(path, selection).Clone()
+            obj.SetDirectory(0)
+            ROOT.SetOwnership(obj, False)
+
+            if self.button_hist.get_active():
+                opts += ',hist'
+            if self.button_colz.get_active():
+                opts += ',colz'
+
+            if self.button_norm.get_active():
+                if first_hist_norm is None:
+                    first_hist_norm = obj.Integral()
+                else:
+                    obj.Scale(first_hist_norm/obj.Integral())
+
+            plot.add(obj, opts)
+
+        # configure plot
+        plot.logx = self.button_logx.get_active()
+        plot.logy = self.button_logy.get_active()
+
+        # create
+        plot.create()
+        self.plots.append(plot)
+        plot.canvas.Update()
+        self.history.add([ (ifile, item, path, opts) for (ifile, item, path, opts) in self.plot_model ])
+
+
+        self.clear_plot()
+
+
+    ## Buttons cb
+    def on_button_clear(self, btn):
+        self.clear_plot()
+
+    def on_button_draw(self, btn):
+        self.draw()
+
+    def on_button_draw_ratio(self, btn):
+        pass
+
+    def on_button_draw_and_ratio(self, btn):
+        pass
+
+    def on_button_up(self, btn):
+        selection = self.plot_model.get_selection()
+        self.plot_model.move_after()
+
+    def on_button_down(self, btn):
+        pass
+
+    def on_button_prev(self, btn):
+        self.clear_plot()
+
+        prev_plot = self.history.back()
+
+        if prev_plot is not None:
+            for obj in prev_plot:
+                self.plot_model.append(obj)
+
+        self.update_plot_label()
+
+    def on_button_next(self, btn):
+        self.clear_plot()
+        for obj in self.history.forward():
+            self.plot_model.append(obj)
+
+        self.update_plot_label()
+
+    def update_plot_label(self):
+        self.plot_label.set_label('Plot (%i/%i)' % (self.history.index()+1, len(self.history)+1))
+
+
+    # Keyboard shorcuts
     def on_key_press(self, window, event):
 
         key = Gdk.keyval_name(event.keyval)
@@ -339,109 +459,3 @@ class App:
             pass
         elif key == 'Tab':
             pass
-
-
-    def selected_row_callback(self, treesel, model, path, nose, ifile):
-
-        treeiter = model.get_iter(path)
-
-        if model.iter_next(treeiter) is not None and model.iter_has_child(treeiter):
-            return False
-
-        ifile = model.get_value(treeiter, 0)
-        path  = model.get_value(treeiter, 3)
-        item = len(self.plot_model)
-        opts = default_colours[item]
-
-        if (ifile, item, path, opts) in self.plot_model:
-            return False
-
-        self.plot_model.append((ifile, item, path, opts))
-
-        return False
-
-    ## Buttons cb
-    def on_button_clear(self, btn):
-        self.clear_plot()
-
-    def on_button_draw(self, btn):
-        self.draw()
-
-    def on_button_draw_ratio(self, btn):
-        pass
-
-    def on_button_draw_and_ratio(self, btn):
-        pass
-
-    def on_button_up(self, btn):
-        selection = self.plot_model.get_selection()
-        self.plot_model.move_after()
-
-    def on_button_down(self, btn):
-        pass
-
-    def on_button_prev(self, btn):
-        self.clear_plot()
-
-        prev_plot = self.history.back()
-
-        if prev_plot is not None:
-            for obj in prev_plot:
-                self.plot_model.append(obj)
-
-        self.update_plot_label()
-
-    def on_button_next(self, btn):
-        self.clear_plot()
-        for obj in self.history.forward():
-            self.plot_model.append(obj)
-
-        self.update_plot_label()
-
-    def update_plot_label(self):
-        self.plot_label.set_label('Plot (%i/%i)' % (self.history.index()+1, len(self.history)+1))
-
-    ## Draw
-    def draw(self):
-
-        if not self.plot_model or len(self.plot_model) < 1:
-            return
-
-
-        plot = Plot()
-
-        selection = self.sel_box.get_text()
-
-        # add objects
-        first_hist_norm = None
-        for (ifile, item, path, opts) in self.plot_model:
-
-            obj = self.files[ifile].get_object(path, selection).Clone()
-            obj.SetDirectory(0)
-            ROOT.SetOwnership(obj, False)
-
-            if self.button_hist.get_active():
-                opts += ',hist'
-            if self.button_colz.get_active():
-                opts += ',colz'
-
-            if self.button_norm.get_active():
-                if first_hist_norm is None:
-                    first_hist_norm = obj.Integral()
-                else:
-                    obj.Scale(first_hist_norm/obj.Integral())
-
-            plot.add(obj, opts)
-
-        # configure plot
-        plot.logx = self.button_logx.get_active()
-        plot.logy = self.button_logy.get_active()
-
-        # create
-        plot.create()
-        self.plots.append(plot)
-        plot.canvas.Update()
-        self.history.add([ (ifile, item, path, opts) for (ifile, item, path, opts) in self.plot_model ])
-
-
-        self.clear_plot()

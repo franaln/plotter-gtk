@@ -31,6 +31,8 @@ class PlotConf(object):
         self.xmax = xmax
 
 plots_conf = dict()
+plots_conf['default'] = PlotConf('','', 'right')
+
 plots_conf['cuts']            = PlotConf('', 'Events', 'right')
 plots_conf['ph_n']            = PlotConf('Number of photons', 'Events', 'right')
 plots_conf['el_n']            = PlotConf('Number of electrons', 'Events', 'right')
@@ -50,11 +52,6 @@ plots_conf['rt4']             = PlotConf('R_{T}^{4}', 'Events / BIN', 'left', 0.
 plots_conf['pt']  = PlotConf('p_{T} [GeV]', 'Events / (BIN GeV)', 'right')
 plots_conf['eta'] = PlotConf('#eta', 'Events / (BIN GeV)', 'right')
 plots_conf['phi'] = PlotConf('#phi', 'Events / (BIN GeV)', 'right')
-
-
-plots_conf['default'] = PlotConf('','', 'right')
-
-
 
 
 
@@ -146,13 +143,13 @@ def draw_significance(canvas, h_obs, h_exp):
 
 def draw_ratio(canvas, h_deno, h_nume):
 
-        ratio = h_nume.Clone()
-        ratio.Divide(h_deno)
+    ratio = h_nume.Clone()
+    ratio.Divide(h_deno)
 
-        # remove the point from the plot if zero
-        for b in xrange(ratio.GetNbinsX()):
-            if ratio.GetBinContent(b+1) < 0.00001:
-                ratio.SetBinContent(b+1, -1)
+    # remove the point from the plot if zero
+    for b in xrange(ratio.GetNbinsX()):
+        if ratio.GetBinContent(b+1) < 0.00001:
+            ratio.SetBinContent(b+1, -1)
 
         canvas.cd()
         ratio.SetTitle('')
@@ -257,14 +254,20 @@ class Plot:
         self.canvas = None
         self.legend = None
 
-        self.objects = []
-        self.labels = []
+        self.xmin = 0
+        self.xmax = 100
+        self.ymin = 0
+        self.ymax = 100
+        self.zmin = 0
+        self.zmax = 100
+
+        self.objects  = []
+        self.labels   = []
         self.drawopts = []
 
         self.logx = False
         self.logy = False
-
-        self.logy = False
+        self.logz = False
 
         Plot.number_of_plot = Plot.number_of_plot + 1
 
@@ -276,6 +279,12 @@ class Plot:
         del self.canvas
         del self.legend
 
+    def save(self, extension='pdf'):
+        if self.canvas or not self.canvas.IsOnHeap():
+            return
+        self.canvas.Print(self.name + '.'+ extension)
+
+
     def add(self, obj, opts='', label=''):
 
         if ',' in opts:
@@ -283,7 +292,6 @@ class Plot:
         else:
             colour, drawopts = opts, ''
 
-        # set_style(obj, colour)
         set_style(obj, colour)
 
         self.objects.append(obj)
@@ -297,12 +305,7 @@ class Plot:
             label = obj.GetName()
         self.labels.append(label)
 
-    def save(self):
-        if self.canvas or not self.canvas.IsOnHeap():
-            return
-        self.canvas.Print(self.name + '.pdf')
-
-    def dump(self):
+        def dump(self):
         text = ''
 
         text += self.name + ' = ROOT.TCanvas("' + self.name + '", "' + self.name + '", 600, 600)\n'
@@ -322,49 +325,42 @@ class Plot:
         return text
 
 
-    def get_ymax(self):
+    def compute_ranges(self):
 
+        # ymax
         ymax = -1.e300
         for obj in self.objects:
             hmax = obj.GetMaximum()
             if hmax > ymax:
                 ymax = hmax
+        self.ymax = ymax
 
-        return ymax
-
-    def get_ymin(self):
-
+        # ymin
         ymin = 1.e300
-
         for obj in self.objects:
             hmin = obj.GetMinimum()
             if hmin < ymin:
                 ymin = hmin
+        self.ymin = ymin
 
-        return ymin
-
-    def get_xmax(self):
+        # xmax
         xmax = -1.e300
         for obj in self.objects:
             hmax = obj.GetXaxis().GetXmax()
             if hmax > xmax:
                 xmax = hmax
+        self.xmax = xmax
 
-        return xmax
-
-    def get_xmin(self):
+        # xmin
         xmin = 1.e300
         for obj in self.objects:
             hmin = obj.GetXaxis().GetXmin()
             if hmin < xmin:
                 xmin = hmin
+        self.xmin =  xmin
 
-        return xmin
 
-
-    def create(self):
-
-        do_ratio = False
+    def create(self, do_ratio=False):
 
         # try to guess variable
         names = [ obj.GetName() for obj in self.objects ]
@@ -396,14 +392,14 @@ class Plot:
         xmax   = conf.xmax
         legpos = conf.legpos
 
-        if xmin is None:
-            xmin = self.get_xmin()
-
-        if xmax is None:
-            xmax = self.get_xmax()
-
-        ymin = self.get_ymin()
-        ymax = self.get_ymax()
+        if xmin is None or xmax is None or ymin is None or ymax is None:
+            compute_ranges()
+        else:
+            self.xmin = xmin
+            self.xmax = xmax
+            self.xmin = xmin
+            self.xmin = xmin
+            self.xmin = xmin
 
         if self.logy:
             ymin = 0.01
@@ -427,7 +423,6 @@ class Plot:
             cdown.SetBottomMargin(0.37)
             cdown.SetTopMargin(0.0054)
 
-
             cup.SetTickx()
             cup.SetTicky()
             cdown.SetTickx()
@@ -435,7 +430,6 @@ class Plot:
             cdown.SetFillColor(ROOT.kWhite)
             cup.Draw()
             cdown.Draw()
-
 
             if self.logy:
                 cup.SetLogy()
@@ -557,69 +551,22 @@ class Plot:
         self.legend.Draw()
 
 
-    # def draw_legend():
+    def draw_legend():
 
-    #     if self.labels == 1:
-    #         return
+        if len(self.labels) == 1 or len(self.labels) != len(self.objects):
+            return
 
-    #     # Legend config
-    #     hsv = self.get_number_of_objects_in_each_file()
+        max_width = len(self.labels[0]) * 0.01
+        max_height = len(self.labels) * 0.035
 
-    #     mtitle = False
-    #     mfile = False
-    #     mtitlefile = False
-    #     if hsv[0] == 1 and hsv[1] == 1: # 1 solo histo de >1 files
-    #        mfile = True
+        xmax = 0.86; ymax = 0.86;
+        ymin = ymax - max_height if (ymax - max_height)>0.2 else 0.2
+        xmin = xmax - max_width  if (xmax - max_width)>0.2  else 0.2;
 
-    #     elif hsv[0] and not hsv[1]: # >1 histo de 1 solo file
-    #         mtitle = True
-    #     elif hsv[0] and hsv[1]: # >1 histo de >1 file
-    #         mtitlefile = True
+        # Create and plot legend
+        leg = ROOT.TLegend(xmin, ymin, xmax, ymax)
+        leg.SetFillColor(0)
 
-    #     legtemp = [];
-    #     for k in xrange(self.labels):
-
-    #         tmp = ""
-    #         if mfile:
-    #             tmp = fb[items_sel[k]->get_file()]->get_header_text();
-#   //     }
-#   //     else if(mtitle){
-#   //       items_sel[k]->get_legend_text();
-#   //     }
-#   //     else if(mtitlefile){
-#   //       tmp = " (" + fb[items_sel[k]->get_file()]->get_header_text() + ")";
-#   //       tmp=items_sel[k]->get_legend_text()+tmp;
-#   //     }
-#   //     legend.push_back(tmp);
-#   //     legtemp.push_back(tmp);
-#   // }
-
-#   // if(type==Plot::Ratio){
-#   //   for(unsigned int i=1;i<legend.size();i++){
-#   //     legend[i] += "/";
-#   //     legend[i] += legend[0];
-#   //   }
-#   // }
-
-#   // // legend size
-#   // sort(legtemp.begin(), legtemp.end());
-#   // reverse(legtemp.begin(),legtemp.end());
-
-#   // Double_t maxwidth = legtemp[0].Sizeof() * 0.01;
-#   // Double_t maxheight = items_sel.size() * 0.035;
-
-#   // Double_t xmin, xmax, ymin, ymax;
-
-#   // xmax = 0.86; ymax = 0.86;
-#   // ymin = (ymax - maxheight)>0.2 ? ymax - maxheight : 0.2;
-#   // xmin = (xmax - maxwidth)>0.2  ? xmax - maxwidth  : 0.2;
-
-#   // // Create and plot legend
-#   // TLegend *leg = new TLegend(xmin, ymin, xmax, ymax);
-#   // leg->SetFillColor(0);
-#   // unsigned int begin = type!=Plot::Normal ? 1 : 0;
-#   // for(unsigned int k=begin; k<items_sel.size(); k++){
-#   //   leg->AddEntry(plot_list->At(k), legend[k]);
-#   // }
-#   // leg->Draw();
-#   //}
+        for obj, lbl in zip(self.objects, self.labels):
+            leg.AddEntry(obj, lbl)
+        leg.Draw()

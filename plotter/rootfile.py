@@ -17,6 +17,9 @@ class RootFile:
         for depth, path, name in self.browse_dir(0, ''):
             yield (depth, path, name)
 
+    def is_valid(self):
+        return True
+
     def browse_dir(self, depth, parent_name):
 
         cdir = self._file.GetDirectory(parent_name)
