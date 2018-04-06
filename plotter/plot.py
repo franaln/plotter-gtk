@@ -297,7 +297,7 @@ class Plot:
         self.objects.append(obj)
 
         if self.drawopts:
-            self.drawopts.append(drawopts+'same')
+            self.drawopts.append(drawopts)
         else:
             self.drawopts.append(drawopts)
 
@@ -360,7 +360,7 @@ class Plot:
         self.xmin =  xmin
 
 
-    def create(self, do_ratio=False):
+    def create(self, logx=False, logy=False, do_ratio=False):
 
         # try to guess variable
         names = [ obj.GetName() for obj in self.objects ]
