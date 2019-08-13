@@ -305,13 +305,13 @@ class Plot:
             label = obj.GetName()
         self.labels.append(label)
 
-        def dump(self):
-        text = ''
+        # def dump(self):
+        # text = ''
 
-        text += self.name + ' = ROOT.TCanvas("' + self.name + '", "' + self.name + '", 600, 600)\n'
+        # text += self.name + ' = ROOT.TCanvas("' + self.name + '", "' + self.name + '", 600, 600)\n'
 
-        for obj, drawopts in zip(self.objects, self.drawopts):
-            text += 'h_' + obj.GetName() + '.Draw("'+drawopts+'")\n'
+        # for obj, drawopts in zip(self.objects, self.drawopts):
+        #     text += 'h_' + obj.GetName() + '.Draw("'+drawopts+'")\n'
 
         # (items_sel[k]->GetFile(), items_sel[k]->GetName(), items_sel[k]->GetText())
         # temp->SetDrawOptions(lnk->GetOption())
@@ -322,7 +322,7 @@ class Plot:
         # if(checkNormalise2->GetState()) temp->SetScaleFactor(((TH1*)plot_list->At(0))->Integral()/h->Integral())
         # //        macro->AddHisto(temp)
 
-        return text
+        # return text
 
 
     def compute_ranges(self):
